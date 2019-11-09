@@ -10,7 +10,8 @@ import java.util.Scanner;
 public class StorageSystem {
     private DirectoryServer directoryServer;
     private List<StorageNode> nodesList;
-    public static void main(String[] args) throws Exception{
+
+    public static void main(String[] args) throws Exception {
         String configFilePath = "./config.txt";
         List<String[]> systemInformation = readConfigFile(configFilePath);
         StorageSystem storageSystem = new StorageSystem(systemInformation);
@@ -20,11 +21,11 @@ public class StorageSystem {
 
     }
 
-    public StorageSystem(List<String[]> systemInformation){
+    public StorageSystem(List<String[]> systemInformation) {
         initializeSystem(systemInformation);
     }
 
-    public void initializeSystem(List<String[]> systemInformation){
+    public void initializeSystem(List<String[]> systemInformation) {
         this.nodesList = new ArrayList<>();
         List<String> addressPortList = new ArrayList<>();
         String dsName = "";
@@ -33,48 +34,48 @@ public class StorageSystem {
         try {
             for (int i = 0; i < systemInformation.size(); i++) {
                 String[] configArray = systemInformation.get(i);
-                if (i == 0) {
+                if (i == 0) {  //initialize the directory server
                     dsName = configArray[0];
                     dsAddress = configArray[1];
                     dsPort = Integer.parseInt(configArray[2]);
-                } else {
+                } else {       //initialize every node in the system
                     this.nodesList.add(new StorageNode(configArray[0], configArray[1], Integer.parseInt(configArray[2]), configArray[3]));
                     addressPortList.add(configArray[1] + ";" + configArray[2]);
                 }
             }
             this.directoryServer = new DirectoryServer(dsName, dsAddress, dsPort, addressPortList);
-            for (StorageNode node : nodesList){
+            for (StorageNode node : nodesList) {
                 node.setDirectoryServer(directoryServer.getAddress(), directoryServer.getPort());
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static List<String[]>  readConfigFile(String configFilePath){
-        List<String[]> networkInformation = new ArrayList<String []>();
+    public static List<String[]> readConfigFile(String configFilePath) {
+        List<String[]> networkInformation = new ArrayList<String[]>();
         BufferedReader bufferedReader;
         try {
             File file = new File(configFilePath);
             bufferedReader = new BufferedReader(new FileReader(file));
             String strLine = null;
-            while(null != (strLine = bufferedReader.readLine())){
+            while (null != (strLine = bufferedReader.readLine())) {
                 String[] configArray = strLine.split(" ");
-                if (configArray[0].equals("DirectoryServer")){
-                    networkInformation.add(new String[] {configArray[0], configArray[1], configArray[2]});
-                }else{
+                if (configArray[0].equals("DirectoryServer")) {
+                    networkInformation.add(new String[]{configArray[0], configArray[1], configArray[2]});
+                } else {
                     networkInformation.add(configArray);
                 }
             }
             bufferedReader.close();
             return networkInformation;
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    public void manualMode() throws Exception{
+    public void manualMode() throws Exception {
         while (true) {
             System.out.println("*******************************************************");
             System.out.println("Enter 1 : Add a new storage node to current system.");
@@ -99,7 +100,7 @@ public class StorageSystem {
                 case "2": {
                     Client client = new Client("localhost", 23333);
                     client.connectToSystem(directoryServer.getAddress(), directoryServer.getPort());
-                    while (true){
+                    while (true) {
                         System.out.println("*******************************************************");
                         System.out.println("Enter 1 : Get Files List.");
                         System.out.println("Enter 2 : Add a new File.");
@@ -108,16 +109,16 @@ public class StorageSystem {
 
                         varInput = userInput.nextLine();
 
-                        if (varInput.equals("1")){
+                        if (varInput.equals("1")) {
                             client.getFilesList();
-                        }else if (varInput.equals("2")){
+                        } else if (varInput.equals("2")) {
                             System.out.println("Enter new file name.");
                             varInput = userInput.nextLine();
                             client.createNewFile(varInput);
                             continue;
-                        }else if (varInput.equals("3")){
+                        } else if (varInput.equals("3")) {
                             break;
-                        }else{
+                        } else {
                             System.out.println("Wrong command, Please try again!!");
                         }
                     }
@@ -135,20 +136,20 @@ public class StorageSystem {
 
     }
 
-    private void createNewNode(String name, String folder, int port) throws Exception{
-        for (StorageNode node : nodesList){
+    private void createNewNode(String name, String folder, int port) throws Exception {
+        for (StorageNode node : nodesList) {
             if (name.equals(node.getName())) {
                 System.out.println("Node name already exists!");
                 return;
             }
         }
         File file = new File(folder);
-        if (file.exists()){
+        if (file.exists()) {
             System.out.println("Node folder already exists!");
             return;
         }
         boolean res = isPortUsing(port);
-        if (res){
+        if (res) {
             System.out.println("This port is using by other program!");
             return;
         }
@@ -163,7 +164,7 @@ public class StorageSystem {
 
     }
 
-    private boolean isPortUsing(int port){
+    private boolean isPortUsing(int port) {
         boolean flag = false;
         try {
             Socket socket = new Socket("localhost", port);  //建立一个Socket连接

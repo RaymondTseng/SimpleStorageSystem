@@ -12,13 +12,14 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class DirectoryServer extends Server implements Runnable{
+public class DirectoryServer extends Server implements Runnable {
     private String name;
     private List<String> filesList;
     private List<String> addressPortList;
     private ServerSocket serverSocket;
     // Manage threads
     private ThreadPoolExecutor threadPoolExecutor;
+
     public DirectoryServer(String name, String address, int port, List<String> addressPortList) throws IOException {
         this.name = name;
         this.address = address;
@@ -37,8 +38,8 @@ public class DirectoryServer extends Server implements Runnable{
 
     synchronized public void register(RequestPackage rp) throws Exception {
         List<String> filesList = (List<String>) rp.getContent();
-        for (String fileName : filesList){
-            if (!this.filesList.contains(fileName)){
+        for (String fileName : filesList) {
+            if (!this.filesList.contains(fileName)) {
                 this.filesList.add(fileName);
             }
         }
@@ -51,7 +52,7 @@ public class DirectoryServer extends Server implements Runnable{
 
     }
 
-    public void getAllNodes(Socket socket){
+    public void getAllNodes(Socket socket) {
         RequestPackage rp = new RequestPackage(3, this.getAddress(), this.getPort(), this.addressPortList);
         try {
             ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
@@ -62,7 +63,7 @@ public class DirectoryServer extends Server implements Runnable{
         }
     }
 
-    public void connect(Socket socket){
+    public void connect(Socket socket) {
         List<String> content = new ArrayList<>();
         content.add(this.addressPortList.get(0));
         RequestPackage rp = new RequestPackage(2, this.address, this.port, content);
@@ -75,14 +76,14 @@ public class DirectoryServer extends Server implements Runnable{
         }
     }
 
-    public List<String> getFilesList(){
+    public List<String> getFilesList() {
         return filesList;
     }
 
     @Override
     public void run() {
         Socket socket = null;
-        while (true){
+        while (true) {
             try {
                 socket = this.serverSocket.accept();
                 threadPoolExecutor.execute(new Task(socket));
@@ -92,30 +93,32 @@ public class DirectoryServer extends Server implements Runnable{
         }
     }
 
-    class Task implements Runnable{
+    class Task implements Runnable {
         private Socket socket;
-        public Task(Socket socket){
+
+        public Task(Socket socket) {
             this.socket = socket;
         }
+
         @Override
         public void run() {
             ObjectInputStream ois = null;
-            try{
+            try {
                 ois = new ObjectInputStream(this.socket.getInputStream());
                 RequestPackage rp = (RequestPackage) ois.readObject();
                 // different types mean different requests
-                if (rp.getRequestType() == 0){
+                if (rp.getRequestType() == 0) {
                     register(rp);
-                }else if (rp.getRequestType() == 1){
+                } else if (rp.getRequestType() == 1) {
 
-                }else if (rp.getRequestType() == 2){
+                } else if (rp.getRequestType() == 2) {
                     connect(socket);
-                }else if (rp.getRequestType() == 3){
+                } else if (rp.getRequestType() == 3) {
                     getAllNodes(socket);
                 }
                 ois.close();
 
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }

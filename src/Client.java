@@ -6,15 +6,16 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Client extends Server{
+public class Client extends Server {
     private String nodeAddress;
     private int nodePort;
-    public Client(String address, int port){
+
+    public Client(String address, int port) {
         this.address = address;
         this.port = port;
     }
 
-    public void connectToSystem(String address, int port){
+    public void connectToSystem(String address, int port) {
         try {
             Socket socket = new Socket(address, port);
             RequestPackage rp = new RequestPackage(2, this.address, this.port, null);
@@ -35,7 +36,7 @@ public class Client extends Server{
         }
     }
 
-    public void createNewFile(String fileName){
+    public void createNewFile(String fileName) {
         try {
             Socket socket = new Socket(this.nodeAddress, this.nodePort);
             List<String> content = new ArrayList<>();
@@ -49,7 +50,7 @@ public class Client extends Server{
         }
     }
 
-    public void getFilesList(){
+    public void getFilesList() {
         try {
             Socket socket = new Socket(this.nodeAddress, this.nodePort);
             RequestPackage rp = new RequestPackage(2, this.address, this.port, null);
@@ -62,7 +63,7 @@ public class Client extends Server{
             List<String> fileList = rp.getContent();
             oos.close();
             ois.close();
-            for (String fileName : fileList){
+            for (String fileName : fileList) {
                 System.out.println(fileName);
             }
 

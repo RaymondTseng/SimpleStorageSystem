@@ -3,9 +3,7 @@ public class Server {
     protected String address;
     protected int port;
 
-    public String getName(){
-        return name;
-    }
+    public String getName() { return name; }
 
     public String getAddress() {
         return address;
