@@ -15,6 +15,8 @@ public class StorageNode extends Server implements Runnable {
     private ThreadPoolExecutor threadPoolExecutor;
     private String dsAddress;
     private int dsPort;
+    private String backupServerAddress;
+    private int backupServerPort;
 
     public StorageNode(String name, String address, int port, String dataFolder) throws IOException {
         this.name = name;
@@ -181,6 +183,22 @@ public class StorageNode extends Server implements Runnable {
             oos.flush();
             oos.close();
 
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void setBackupServer(String backupServerAddress, int backupServerPort) {
+        this.backupServerAddress = backupServerAddress;
+        this.backupServerPort = backupServerPort;
+        try {
+            Socket socket = new Socket(backupServerAddress, backupServerPort);
+            RequestPackage rp = new RequestPackage(0, this.address, this.port, this.filesList);
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(rp);
+            oos.flush();
+            oos.close();
 
         } catch (Exception e) {
             e.printStackTrace();

@@ -10,7 +10,7 @@ import java.util.Scanner;
 public class StorageSystem {
     private DirectoryServer directoryServer;
     private List<StorageNode> nodesList;
-
+    private DirectoryServer backupServer;
     public static void main(String[] args) throws Exception {
         String configFilePath = "./config.txt";
         List<String[]> systemInformation = readConfigFile(configFilePath);
@@ -31,6 +31,10 @@ public class StorageSystem {
         String dsName = "";
         String dsAddress = "";
         int dsPort = -1;
+        String backupServerName = "";
+        String backupServerAddress = "";
+        int backupServerPort = -1;
+
         try {
             for (int i = 0; i < systemInformation.size(); i++) {
                 String[] configArray = systemInformation.get(i);
@@ -38,14 +42,24 @@ public class StorageSystem {
                     dsName = configArray[0];
                     dsAddress = configArray[1];
                     dsPort = Integer.parseInt(configArray[2]);
-                } else {       //initialize every node in the system
+                }
+                else if(i == 1){  //initialize the backup server
+                    backupServerName = configArray[0];
+                    backupServerAddress = configArray[1];
+                    backupServerPort = Integer.parseInt(configArray[2]);
+                }
+
+
+                else {       //initialize every node in the system
                     this.nodesList.add(new StorageNode(configArray[0], configArray[1], Integer.parseInt(configArray[2]), configArray[3]));
                     addressPortList.add(configArray[1] + ";" + configArray[2]);
                 }
             }
             this.directoryServer = new DirectoryServer(dsName, dsAddress, dsPort, addressPortList);
+            this.backupServer = new DirectoryServer(backupServerName, backupServerAddress, backupServerPort, addressPortList);
             for (StorageNode node : nodesList) {
                 node.setDirectoryServer(directoryServer.getAddress(), directoryServer.getPort());
+                node.setBackupServer(backupServer.getAddress(), backupServer.getPort());
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -61,7 +75,7 @@ public class StorageSystem {
             String strLine = null;
             while (null != (strLine = bufferedReader.readLine())) {
                 String[] configArray = strLine.split(" ");
-                if (configArray[0].equals("DirectoryServer")) {
+                if (configArray[0].substring(configArray[0].length() - 6, configArray[0].length()).equals("Server")) { //record the information of the Servers
                     networkInformation.add(new String[]{configArray[0], configArray[1], configArray[2]});
                 } else {
                     networkInformation.add(configArray);
@@ -94,7 +108,7 @@ public class StorageSystem {
                     String nodeFolder = userInput.nextLine();
                     System.out.println("Please enter the new node's port");
                     String nodePort = userInput.nextLine();
-                    createNewNode(nodeName, nodeFolder, Integer.parseInt(nodePort));
+                    createNewNode(nodeName, "localhost", nodeFolder, Integer.parseInt(nodePort));
                     break;
                 }
                 case "2": {
@@ -136,7 +150,7 @@ public class StorageSystem {
 
     }
 
-    private void createNewNode(String name, String folder, int port) throws Exception {
+    private void createNewNode(String name, String address, String folder, int port) throws Exception {
         for (StorageNode node : nodesList) {
             if (name.equals(node.getName())) {
                 System.out.println("Node name already exists!");
@@ -158,10 +172,10 @@ public class StorageSystem {
             System.out.println("Fail to create node folder!");
             return;
         }
-        StorageNode node = new StorageNode(name, "localhost", port, folder);
+        StorageNode node = new StorageNode(name, address, port, folder);
         this.nodesList.add(node);
         node.setDirectoryServer(directoryServer.getAddress(), directoryServer.getPort());
-
+        node.setBackupServer(backupServer.getAddress(), backupServer.getPort());
     }
 
     private boolean isPortUsing(int port) {

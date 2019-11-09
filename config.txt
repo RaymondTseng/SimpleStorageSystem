@@ -1,4 +1,5 @@
 DirectoryServer localhost 8123
+BackupServer localhost 5652
 a localhost 8124 ./nodesData/a
 b localhost 8125 ./nodesData/b
 c localhost 8126 ./nodesData/c
