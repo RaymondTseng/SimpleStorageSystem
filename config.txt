@@ -1,4 +1,4 @@
-DirectorySystem localhost 7123
-a localhost 7124 ./nodesData/a
-b localhost 7125 ./nodesData/b
-c localhost 7126 ./nodesData/c
+DirectoryServer localhost 8123
+a localhost 8124 ./nodesData/a
+b localhost 8125 ./nodesData/b
+c localhost 8126 ./nodesData/c

@@ -1,6 +1,9 @@
+import sun.reflect.generics.scope.Scope;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
@@ -16,13 +19,13 @@ public class DirectoryServer extends Server implements Runnable{
     private ServerSocket serverSocket;
     // Manage threads
     private ThreadPoolExecutor threadPoolExecutor;
-    public DirectoryServer(String name, String address, int port) throws IOException {
+    public DirectoryServer(String name, String address, int port, List<String> addressPortList) throws IOException {
         this.name = name;
         this.address = address;
         this.port = port;
+        this.addressPortList = addressPortList;
 
         filesList = new ArrayList<>();
-        addressPortList = new ArrayList<>();
 
         this.serverSocket = new ServerSocket(port);
         this.threadPoolExecutor = new ThreadPoolExecutor(4, 8, 1000,
@@ -32,10 +35,19 @@ public class DirectoryServer extends Server implements Runnable{
         new Thread(this).start();
     }
 
-    public void register(Socket socket) throws Exception {
-        ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-        RequestPackage rp = (RequestPackage) ois.readObject();
+    synchronized public void register(RequestPackage rp) throws Exception {
         List<String> filesList = (List<String>) rp.getContent();
+        for (String fileName : filesList){
+            if (!this.filesList.contains(fileName)){
+                this.filesList.add(fileName);
+            }
+        }
+
+        Socket _socket = new Socket(rp.getRequestAddress(), rp.getRequestPort());
+        ObjectOutputStream oos = new ObjectOutputStream(_socket.getOutputStream());
+        oos.writeObject(new RequestPackage(0, this.address, this.port, this.addressPortList));
+        oos.flush();
+        oos.close();
 
     }
 
@@ -81,7 +93,7 @@ public class DirectoryServer extends Server implements Runnable{
                 RequestPackage rp = (RequestPackage) ois.readObject();
                 // different types mean different requests
                 if (rp.getRequestType() == 0){
-                    register(socket);
+                    register(rp);
                 }else if (rp.getRequestType() == 1){
 
                 }

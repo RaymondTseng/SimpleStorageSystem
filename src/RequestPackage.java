@@ -10,13 +10,13 @@ public class RequestPackage implements Serializable {
     private int requestType;
     private String requestAddress;
     private int requestPort;
-    private Object content;
+    private List<String> content;
 
-    public RequestPackage(int requestType, String address, int port, Object object) {
+    public RequestPackage(int requestType, String address, int port, List<String> content) {
         this.requestType = requestType;
         this.requestAddress = address;
         this.requestPort = port;
-        this.content = object;
+        this.content = content;
     }
 
     public int getRequestType() {
@@ -31,7 +31,7 @@ public class RequestPackage implements Serializable {
         return requestPort;
     }
 
-    public Object getContent() {
+    public List<String> getContent() {
         return content;
     }
 
