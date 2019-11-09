@@ -51,16 +51,28 @@ public class DirectoryServer extends Server implements Runnable{
 
     }
 
-    public void newFile(String fileName, File file){
-        for (String addressPort : addressPortList){
-            String[] array = addressPort.split(";");
-
+    public void getAllNodes(Socket socket){
+        RequestPackage rp = new RequestPackage(3, this.getAddress(), this.getPort(), this.addressPortList);
+        try {
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(rp);
+            oos.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        filesList.add(fileName);
     }
 
-    public void connect(){
-
+    public void connect(Socket socket){
+        List<String> content = new ArrayList<>();
+        content.add(this.addressPortList.get(0));
+        RequestPackage rp = new RequestPackage(2, this.address, this.port, content);
+        try {
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(rp);
+            oos.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public List<String> getFilesList(){
@@ -96,6 +108,10 @@ public class DirectoryServer extends Server implements Runnable{
                     register(rp);
                 }else if (rp.getRequestType() == 1){
 
+                }else if (rp.getRequestType() == 2){
+                    connect(socket);
+                }else if (rp.getRequestType() == 3){
+                    getAllNodes(socket);
                 }
                 ois.close();
 

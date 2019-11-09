@@ -44,18 +44,68 @@ public class StorageNode extends Server implements Runnable{
         }
     }
 
-    public List<String> getFilesList() {
-        return filesList;
+    public void getFilesList(Socket socket) {
+        RequestPackage rp = new RequestPackage(2, this.address, this.port, this.filesList);
+        try {
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(rp);
+            oos.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 
-    public void addFileToSystem(String fileName, File file){
+    public void addFileToSystem(String fileName){
+        try {
+            Socket socket = new Socket(this.dsAddress, this.dsPort);
+            List<String> content = new ArrayList<>();
+            content.add(fileName);
+            RequestPackage rp = new RequestPackage(3, this.getAddress(), this.getPort(), content);
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(rp);
+            oos.flush();
+
+            ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+            rp = (RequestPackage) ois.readObject();
+            for (String addressPort : rp.getContent()){
+                String[] array = addressPort.split(";");
+                String address = array[0];
+                int port = Integer.parseInt(array[1]);
+                sendFile(fileName, address, port);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void createFile(String fileName){
+        if (filesList.contains(fileName)){
+            System.out.println("File name already exists!");
+            return;
+        }
+        try {
+            File file = new File(this.dataFolder + "/" + fileName);
+            if (file.exists()) {
+                System.out.println("File already exists!");
+                return;
+            } else {
+                RandomAccessFile raf = new RandomAccessFile(file, "rw");
+                raf.setLength(10000);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        System.out.println(fileName + " create successfully!");
+        addFileToSystem(fileName);
 
     }
 
     synchronized public void receiveFileToLocal(String fileName, Socket socket) throws Exception{
-        if (filesList.contains(fileName))
+        if (filesList.contains(fileName)) {
+            socket.close();
             return;
+        }
         String path = dataFolder + "/" + fileName;
 
         BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
@@ -78,6 +128,34 @@ public class StorageNode extends Server implements Runnable{
 
     }
 
+    public void sendFile(String fileName, String address, int port){
+        try {
+            Socket socket = new Socket(address, port);
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            List<String> content = new ArrayList<>();
+            content.add(fileName);
+            oos.writeObject(new RequestPackage(1, this.address, this.port, content));
+            oos.flush();
+
+            BufferedInputStream bis = new BufferedInputStream(new FileInputStream(this.dataFolder + "/" + fileName));
+
+            BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream());
+
+            byte[] buf = new byte[1024];
+            int len = 0;
+            while ((len = bis.read(buf)) != -1) {
+                bos.write(buf, 0, len);
+            }
+            bos.flush();
+            oos.close();
+            bos.close();
+            bis.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
     public void register(List<String> addressPortList) throws Exception {
         Socket socket = null;
         for (String addressPort: addressPortList){
@@ -85,26 +163,7 @@ public class StorageNode extends Server implements Runnable{
             String address = array[0];
             int port = Integer.parseInt(array[1]);
             for (String fileName : filesList){
-                socket = new Socket(address, port);
-                ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-                List<String> content = new ArrayList<>();
-                content.add(fileName);
-                oos.writeObject(new RequestPackage(1, this.address, this.port, content));
-                oos.flush();
-
-                BufferedInputStream bis = new BufferedInputStream(new FileInputStream(this.dataFolder + "/" + fileName));
-
-                BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream());
-
-                byte[] buf = new byte[1024];
-                int len = 0;
-                while ((len = bis.read(buf)) != -1) {
-                    bos.write(buf, 0, len);
-                }
-                bos.flush();
-                oos.close();
-                bos.close();
-                bis.close();
+                sendFile(fileName, address, port);
 
             }
         }
@@ -156,6 +215,10 @@ public class StorageNode extends Server implements Runnable{
                     register(rp.getContent());
                 }else if (rp.getRequestType() == 1){
                     receiveFileToLocal(rp.getContent().get(0), socket);
+                }else if (rp.getRequestType() == 2){
+                    getFilesList(socket);
+                }else if (rp.getRequestType() == 3){
+                    createFile(rp.getContent().get(0));
                 }
                 ois.close();
 

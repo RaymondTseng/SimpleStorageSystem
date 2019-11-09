@@ -1,6 +1,8 @@
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.net.InetAddress;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -13,6 +15,7 @@ public class StorageSystem {
         List<String[]> systemInformation = readConfigFile(configFilePath);
         StorageSystem storageSystem = new StorageSystem(systemInformation);
         Thread.sleep(3000);
+        storageSystem.manualMode();
         System.out.println("done!");
 
     }
@@ -90,9 +93,35 @@ public class StorageSystem {
                     String nodeFolder = userInput.nextLine();
                     System.out.println("Please enter the new node's port");
                     String nodePort = userInput.nextLine();
+                    createNewNode(nodeName, nodeFolder, Integer.parseInt(nodePort));
                     break;
                 }
                 case "2": {
+                    Client client = new Client("localhost", 23333);
+                    client.connectToSystem(directoryServer.getAddress(), directoryServer.getPort());
+                    while (true){
+                        System.out.println("*******************************************************");
+                        System.out.println("Enter 1 : Get Files List.");
+                        System.out.println("Enter 2 : Add a new File.");
+                        System.out.println("Enter 3 : Go back.");
+                        System.out.println("*******************************************************");
+
+                        varInput = userInput.nextLine();
+
+                        if (varInput.equals("1")){
+                            client.getFilesList();
+                        }else if (varInput.equals("2")){
+                            System.out.println("Enter new file name.");
+                            varInput = userInput.nextLine();
+                            client.createNewFile(varInput);
+                            continue;
+                        }else if (varInput.equals("3")){
+                            break;
+                        }else{
+                            System.out.println("Wrong command, Please try again!!");
+                        }
+                    }
+
                     break;
                 }
                 case "3":
@@ -104,8 +133,45 @@ public class StorageSystem {
             }
         }
 
+    }
 
+    private void createNewNode(String name, String folder, int port) throws Exception{
+        for (StorageNode node : nodesList){
+            if (name.equals(node.getName())) {
+                System.out.println("Node name already exists!");
+                return;
+            }
+        }
+        File file = new File(folder);
+        if (file.exists()){
+            System.out.println("Node folder already exists!");
+            return;
+        }
+        boolean res = isPortUsing(port);
+        if (res){
+            System.out.println("This port is using by other program!");
+            return;
+        }
+        res = file.mkdirs();
+        if (!res) {
+            System.out.println("Fail to create node folder!");
+            return;
+        }
+        StorageNode node = new StorageNode(name, "localhost", port, folder);
+        this.nodesList.add(node);
+        node.setDirectoryServer(directoryServer.getAddress(), directoryServer.getPort());
 
+    }
 
+    private boolean isPortUsing(int port){
+        boolean flag = false;
+        try {
+            Socket socket = new Socket("localhost", port);  //建立一个Socket连接
+            flag = true;
+            socket.close();
+        } catch (Exception e) {
+
+        }
+        return flag;
     }
 }
