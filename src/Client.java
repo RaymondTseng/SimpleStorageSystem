@@ -9,6 +9,8 @@ import java.util.List;
 public class Client extends Server {
     private String nodeAddress;
     private int nodePort;
+    private String serverAddress;
+    private int serverPort;
 
     public Client(String address, int port) {
         this.address = address;
@@ -16,6 +18,8 @@ public class Client extends Server {
     }
 
     public void connectToSystem(String address, int port) {
+        this.serverAddress = address; //record the information of the directory server
+        this.serverPort = port;
         try {
             Socket socket = new Socket(address, port);
             RequestPackage rp = new RequestPackage(2, this.address, this.port, null);
@@ -49,8 +53,30 @@ public class Client extends Server {
             e.printStackTrace();
         }
     }
+    public void getFilesListFromDirectoryServer() {
+        try {
+            Socket socket = new Socket(this.serverAddress, this.serverPort);
+            RequestPackage rp = new RequestPackage(4, this.address, this.port, null);
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(rp);
+            oos.flush();
 
-    public void getFilesList() {
+            ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+            rp = (RequestPackage) ois.readObject();
+            List<String> fileList = rp.getContent();
+            oos.close();
+            ois.close();
+            for (String fileName : fileList) {
+                System.out.println(fileName);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public void getFilesListFromNode() {
         try {
             Socket socket = new Socket(this.nodeAddress, this.nodePort);
             RequestPackage rp = new RequestPackage(2, this.address, this.port, null);

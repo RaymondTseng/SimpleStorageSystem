@@ -6,7 +6,7 @@ import java.util.List;
  */
 public class RequestPackage implements Serializable {
     private static final long serialVersionUID = 1386583756403881124L;
-    // -1 -> failure, 0 -> register, 1 -> send file, 2 -> get file list, 3 -> create new file
+    // -1 -> failure, 0 -> register, 1 -> send file, 2 -> get file list from node, 3 -> create new file, 4-> get file list from directory server
     private int requestType;
     private String requestAddress;
     private int requestPort;

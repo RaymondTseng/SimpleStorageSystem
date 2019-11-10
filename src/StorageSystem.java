@@ -75,7 +75,7 @@ public class StorageSystem {
             String strLine = null;
             while (null != (strLine = bufferedReader.readLine())) {
                 String[] configArray = strLine.split(" ");
-                if (configArray[0].substring(configArray[0].length() - 6, configArray[0].length()).equals("Server")) { //record the information of the Servers
+                if (configArray[0].contains("Server")) { //record the information of the Servers
                     networkInformation.add(new String[]{configArray[0], configArray[1], configArray[2]});
                 } else {
                     networkInformation.add(configArray);
@@ -116,21 +116,25 @@ public class StorageSystem {
                     client.connectToSystem(directoryServer.getAddress(), directoryServer.getPort());
                     while (true) {
                         System.out.println("*******************************************************");
-                        System.out.println("Enter 1 : Get Files List.");
+                        System.out.println("Enter 1 : Get Files List From Directory Server.");
                         System.out.println("Enter 2 : Add a new File.");
-                        System.out.println("Enter 3 : Go back.");
+                        System.out.println("Enter 3 : Get Files List connected Storage Node.");
+                        System.out.println("Enter 4 : Go back.");
                         System.out.println("*******************************************************");
 
                         varInput = userInput.nextLine();
 
                         if (varInput.equals("1")) {
-                            client.getFilesList();
+                            client.getFilesListFromDirectoryServer();
                         } else if (varInput.equals("2")) {
                             System.out.println("Enter new file name.");
                             varInput = userInput.nextLine();
                             client.createNewFile(varInput);
                             continue;
-                        } else if (varInput.equals("3")) {
+                        } else if (varInput.equals("3")){
+                            client.getFilesListFromNode();
+                        }
+                        else if (varInput.equals("4")) {
                             break;
                         } else {
                             System.out.println("Wrong command, Please try again!!");

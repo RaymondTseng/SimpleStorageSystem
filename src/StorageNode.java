@@ -71,11 +71,11 @@ public class StorageNode extends Server implements Runnable {
 
             ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
             rp = (RequestPackage) ois.readObject();
-            for (String addressPort : rp.getContent()) {
+            for (String addressPort : rp.getContent()) {  //content should also contain this node's address and port: minus self
                 String[] array = addressPort.split(";");
                 String address = array[0];
                 int port = Integer.parseInt(array[1]);
-                sendFile(fileName, address, port);
+                if (port != this.port || address != this.address) sendFile(fileName, address, port);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -88,7 +88,7 @@ public class StorageNode extends Server implements Runnable {
             return;
         }
         try {
-            File file = new File(this.dataFolder + "/" + fileName);
+            File file = new File(this.dataFolder + "/" + fileName);  //create a new file locally with fileName
             if (file.exists()) {
                 System.out.println("File already exists!");
                 return;
@@ -131,7 +131,7 @@ public class StorageNode extends Server implements Runnable {
 
     }
 
-    public void sendFile(String fileName, String address, int port) {
+    public void sendFile(String fileName, String address, int port) {  //send a certain file to the input address and port
         try {
             Socket socket = new Socket(address, port);
             ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());

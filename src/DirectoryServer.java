@@ -1,6 +1,3 @@
-import sun.reflect.generics.scope.Scope;
-
-import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -76,8 +73,19 @@ public class DirectoryServer extends Server implements Runnable {
         }
     }
 
-    public List<String> getFilesList() {
-        return filesList;
+    public void getFilesList(Socket socket) {
+        RequestPackage rp = new RequestPackage(4, this.address, this.port, this.filesList);
+        try {
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(rp);
+            oos.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void deadServerRecover(){
+
     }
 
     @Override
@@ -115,6 +123,8 @@ public class DirectoryServer extends Server implements Runnable {
                     connect(socket);
                 } else if (rp.getRequestType() == 3) {
                     getAllNodes(socket);
+                }else if (rp.getRequestType() == 4) {
+                    getFilesList(socket);
                 }
                 ois.close();
 
