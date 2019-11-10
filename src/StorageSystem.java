@@ -31,9 +31,9 @@ public class StorageSystem {
         String dsName = "";
         String dsAddress = "";
         int dsPort = -1;
-        String backupServerName = "";
-        String backupServerAddress = "";
-        int backupServerPort = -1;
+        String backupName = "";
+        String backupAddress = "";
+        int backupPort = -1;
 
         try {
             for (int i = 0; i < systemInformation.size(); i++) {
@@ -44,9 +44,9 @@ public class StorageSystem {
                     dsPort = Integer.parseInt(configArray[2]);
                 }
                 else if(i == 1){  //initialize the backup server
-                    backupServerName = configArray[0];
-                    backupServerAddress = configArray[1];
-                    backupServerPort = Integer.parseInt(configArray[2]);
+                    backupName = configArray[0];
+                    backupAddress = configArray[1];
+                    backupPort = Integer.parseInt(configArray[2]);
                 }
 
 
@@ -55,8 +55,8 @@ public class StorageSystem {
                     addressPortList.add(configArray[1] + ";" + configArray[2]);
                 }
             }
-            this.directoryServer = new DirectoryServer(dsName, dsAddress, dsPort, addressPortList);
-            this.backupServer = new DirectoryServer(backupServerName, backupServerAddress, backupServerPort, addressPortList);
+            this.directoryServer = new DirectoryServer(dsName, dsAddress, dsPort, addressPortList, backupAddress, backupPort, false);
+            this.backupServer = new DirectoryServer(backupName, backupAddress, backupPort, addressPortList, dsAddress, dsPort, true);
             for (StorageNode node : nodesList) {
                 node.setDirectoryServer(directoryServer.getAddress(), directoryServer.getPort());
                 node.setBackupServer(backupServer.getAddress(), backupServer.getPort());
@@ -113,7 +113,8 @@ public class StorageSystem {
                 }
                 case "2": {
                     Client client = new Client("localhost", 23333);
-                    client.connectToSystem(directoryServer.getAddress(), directoryServer.getPort());
+                    client.connectToSystem(directoryServer.getAddress(), directoryServer.getPort(),
+                            backupServer.getAddress(), backupServer.getPort());
                     while (true) {
                         System.out.println("*******************************************************");
                         System.out.println("Enter 1 : Get Files List From Directory Server.");
@@ -185,7 +186,7 @@ public class StorageSystem {
     private boolean isPortUsing(int port) {
         boolean flag = false;
         try {
-            Socket socket = new Socket("localhost", port);  //建立一个Socket连接
+            Socket socket = new Socket("localhost", port);
             flag = true;
             socket.close();
         } catch (Exception e) {
