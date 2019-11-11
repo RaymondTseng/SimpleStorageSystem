@@ -18,17 +18,32 @@ public class StorageNode extends Server implements Runnable {
     private String backupAddress;
     private int backupPort;
 
+    public static void main(String[] args) throws IOException{
+        if (args.length != 0){
+            new StorageNode(args[0], args[1], Integer.parseInt(args[2]), args[3], args[4], Integer.parseInt(args[5]),
+                    args[6], Integer.parseInt(args[7]));
+        }
+    }
 
-    public StorageNode(String name, String address, int port, String dataFolder) throws IOException {
+
+    public StorageNode(String name, String address, int port, String dataFolder, String dsAddress,
+                       int dsPort, String backupAddress, int backupPort) throws IOException {
         this.name = name;
         this.address = address;
         this.port = port;
         this.dataFolder = dataFolder;
+        this.dsAddress = dsAddress;
+        this.dsPort = dsPort;
+        this.backupAddress = backupAddress;
+        this.backupPort = backupPort;
+
         this.serverSocket = new ServerSocket(port);
         this.threadPoolExecutor = new ThreadPoolExecutor(4, 8, 1000,
                 TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), Executors.defaultThreadFactory(),
                 new ThreadPoolExecutor.AbortPolicy());
         initializeLocalFiles();
+        setDirectoryServer();
+        setBackupServer();
         System.out.println("Activate " + name + " " + address + " " + String.valueOf(port));
         new Thread(this).start();
     }
@@ -110,9 +125,6 @@ public class StorageNode extends Server implements Runnable {
 
     }
 
-    public void readFile(String fileName) {
-
-    }
 
     public void sendAllLocalFiles(String address, int port){
         for (String fileName : filesList){
@@ -144,16 +156,12 @@ public class StorageNode extends Server implements Runnable {
         }
     }
 
-    public void setDirectoryServer(String dsAddress, int dsPort) {
-        this.dsAddress = dsAddress;
-        this.dsPort = dsPort;
+    private void setDirectoryServer() {
         new SocketUtils(dsAddress, dsPort,
                 new RequestPackage(0, this.address, this.port, this.filesList)).send();
     }
 
-    public void setBackupServer(String backupAddress, int backupPort) {
-        this.backupAddress = backupAddress;
-        this.backupPort = backupPort;
+    private void setBackupServer() {
         new SocketUtils(backupAddress, backupPort,
                 new RequestPackage(0, this.address, this.port, this.filesList)).send();
     }

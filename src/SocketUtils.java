@@ -84,7 +84,7 @@ public class SocketUtils {
 
     synchronized public void readFileFromSocket(String filePath){
         try {
-            BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
+            BufferedInputStream bis = new BufferedInputStream(this.socket.getInputStream());
             BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath));
 
             byte [] buf = new byte [1024];

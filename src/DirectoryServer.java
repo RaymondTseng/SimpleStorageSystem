@@ -1,3 +1,4 @@
+import javax.management.ObjectName;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.ServerSocket;
@@ -20,8 +21,21 @@ public class DirectoryServer extends Server implements Runnable {
     private ThreadPoolExecutor threadPoolExecutor;
 
     public static void main(String[] args) throws IOException{
-        DirectoryServer directoryServer = new DirectoryServer("directoryServer", "localhost",
-                8123, null, "localhost", 8888, false);
+        if (args.length != 0){
+            List<String[]> networkInformation = Utils.readConfigFile(args[0]);
+            boolean ifBackup = Boolean.parseBoolean(args[1]);
+            String[] mainConfig = networkInformation.get(0);
+            String[] backupConfig = networkInformation.get(1);
+            List<String> addressPortList = new ArrayList<>();
+            if (!ifBackup){
+                new DirectoryServer(mainConfig[0], mainConfig[1], Integer.parseInt(mainConfig[2]),
+                        addressPortList, backupConfig[1], Integer.parseInt(backupConfig[2]), ifBackup);
+            }else{
+                new DirectoryServer(backupConfig[0], backupConfig[1], Integer.parseInt(backupConfig[2]),
+                        addressPortList, mainConfig[1], Integer.parseInt(mainConfig[2]), ifBackup);
+            }
+        }
+
     }
 
     public DirectoryServer(String name, String address, int port, List<String> addressPortList, String backupAddress,
@@ -71,8 +85,14 @@ public class DirectoryServer extends Server implements Runnable {
                 this.filesList.add(fileName);
             }
         }
+        if (this.addressPortList.size() == 0){
+            this.addressPortList.add(rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
+            return;
+        }
+        this.addressPortList.add(rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
         new SocketUtils(rp.getRequestAddress(), rp.getRequestPort(),
                 new RequestPackage(0, this.address, this.port, this.addressPortList)).send();
+
         String[] array = this.addressPortList.get(0).split(";");
         String address = array[0];
         int port = Integer.parseInt(array[1]);

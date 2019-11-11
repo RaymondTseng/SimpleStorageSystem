@@ -14,6 +14,12 @@ public class Client extends Server {
     private String backupAddress;
     private int backupPort;
 
+    public static void main(String[] args){
+        Client client = new Client("localhost", 23333);
+        client.connectToSystem("localhost", 8123, "localhost", 8888);
+        client.getFilesListFromNode();
+    }
+
     public Client(String address, int port) {
         this.address = address;
         this.port = port;
