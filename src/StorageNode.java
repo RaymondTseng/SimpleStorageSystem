@@ -144,6 +144,10 @@ public class StorageNode extends Server implements Runnable {
 
     }
 
+    public void readFile(String fileName){
+
+    }
+
     public void register(List<String> addressPortList) throws Exception {
         for (String addressPort : addressPortList) {
             String[] array = addressPort.split(";");
