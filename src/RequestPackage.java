@@ -1,3 +1,4 @@
+import java.io.File;
 import java.io.Serializable;
 import java.util.List;
 
@@ -20,6 +21,7 @@ public class RequestPackage implements Serializable {
         this.content = content;
     }
 
+
     public int getRequestType() {
         return requestType;
     }
@@ -35,6 +37,8 @@ public class RequestPackage implements Serializable {
     public List<String> getContent() {
         return content;
     }
+
+    //public File getFileContent() {return fileContent;} // for readfile() to transfer file in the system
 
 }
 

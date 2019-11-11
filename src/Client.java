@@ -1,7 +1,4 @@
-import java.io.File;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
@@ -88,6 +85,30 @@ public class Client extends Server {
     }
 
     public void readFile(String fileName){
+        List<String> fileNames = new ArrayList<String>();
+        fileNames.add(fileName);
+        SocketUtils socketUtils = new SocketUtils(this.nodeAddress, this.nodePort,
+                new RequestPackage(5, this.address, this.port, fileNames));
+        boolean flag = socketUtils.send();
+
+        if (flag){
+            RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
+            File file;
+            file = rp.getFileContent(); //want to let socket pass the exact file to client
+            try (BufferedReader br = new BufferedReader(new FileReader(file))) { //print file
+                String line = null;
+                while ((line = br.readLine()) != null) {
+                    System.out.println(line);
+                }
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }else{
+            connectToSystem();
+        }
 
     }
 

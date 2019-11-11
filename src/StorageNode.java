@@ -144,8 +144,11 @@ public class StorageNode extends Server implements Runnable {
 
     }
 
-    public void readFile(String fileName){
-
+    public void readFile(String fileName, String clientAddress, int clientPort){
+        File content = new File(this.dataFolder + "/" + fileName);
+        SocketUtils socketUtils = new SocketUtils(clientAddress, clientPort, new RequestPackage(5, this.address, this.port, content));
+        socketUtils.send();
+        
     }
 
     public void register(List<String> addressPortList) throws Exception {
@@ -210,6 +213,8 @@ public class StorageNode extends Server implements Runnable {
                 }else if (rp.getRequestType() == 4){
                     String[] array = rp.getContent().get(0).split(";");
                     sendAllLocalFiles(array[0], Integer.parseInt(array[1]));
+                }else if (rp.getRequestType() == 5){
+                    readFile(rp.getContent().get(0),rp.getRequestAddress(),rp.getRequestPort());
                 }
 
             } catch (Exception e) {
