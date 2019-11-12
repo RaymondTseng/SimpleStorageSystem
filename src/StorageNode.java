@@ -49,7 +49,7 @@ public class StorageNode extends Server implements Runnable {
     }
 
     /**
-     * Check the folder and put all file names in hash map
+     * Check the folder and put all file names in hash map(locally)
      */
     public void initializeLocalFiles() {
         filesList = new ArrayList<>();
@@ -126,7 +126,7 @@ public class StorageNode extends Server implements Runnable {
     }
 
 
-    public void sendAllLocalFiles(String address, int port){
+    public void sendAllLocalFiles(String address, int port){  //used in dead node recover
         for (String fileName : filesList){
             sendFile(fileName, address, port);
         }
@@ -143,11 +143,8 @@ public class StorageNode extends Server implements Runnable {
 
     }
 
-    public void readFile(String fileName, String clientAddress, int clientPort){  //send a certain file to the input address and port
-        List<String> content = new ArrayList<>();
-        content.add(fileName);
-        SocketUtils socketUtils = new SocketUtils(clientAddress, clientPort, new RequestPackage(5, this.address, this.port, content));
-        socketUtils.send();
+    public void readFile(String fileName, Socket socket){  //send a certain file to the input address and port
+        SocketUtils socketUtils = new SocketUtils(socket, null);
         socketUtils.sendFileBySocket(this.dataFolder + "/" + fileName);
 
     }
@@ -215,7 +212,7 @@ public class StorageNode extends Server implements Runnable {
                     String[] array = rp.getContent().get(0).split(";");
                     sendAllLocalFiles(array[0], Integer.parseInt(array[1]));
                 }else if (rp.getRequestType() == 5){
-                    readFile(rp.getContent().get(0),rp.getRequestAddress(),rp.getRequestPort());
+                    readFile(rp.getContent().get(0), socket);
                 }
 
             } catch (Exception e) {

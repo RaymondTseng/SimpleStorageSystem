@@ -80,8 +80,12 @@ public class Client extends Server {
     public void createNewFile(String fileName) {
         List<String> content = new ArrayList<>();
         content.add(fileName);
-        new SocketUtils(nodeAddress, nodePort,
+        boolean flag = new SocketUtils(nodeAddress, nodePort,
                 new RequestPackage(3, this.address, this.port, content)).send();
+        if (! flag){
+            tellServerNodeDead();
+            connectToSystem();
+        }
 
     }
 
@@ -92,19 +96,24 @@ public class Client extends Server {
                 new RequestPackage(5, this.address, this.port, fileNames));
         boolean flag = socketUtils.send();
         if (flag){
-            socketUtils.readFileFromSocket(cache + "/" + fileName);
-//            try (BufferedReader br = new BufferedReader(new FileReader(cache + "/" + fileName))) { //print file
-//                String line = null;
-//                while ((line = br.readLine()) != null) {
-//                    System.out.println(line);
-//                }
-//            } catch (FileNotFoundException e) {
-//                e.printStackTrace();
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
+            String tempPath = cache + "/" + fileName;
+            String intellijAddress = tempPath.substring(1, tempPath.length());
+            socketUtils.readFileFromSocket(intellijAddress);
+            try (BufferedReader br = new BufferedReader(new FileReader(intellijAddress))) { //print file
+                String line = null;
+                while ((line = br.readLine()) != null) {
+                    System.out.println(line);
+                }
+                File file = new File(intellijAddress);
+                file.delete();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
         }else{
+            tellServerNodeDead();
             connectToSystem();
         }
 
@@ -138,10 +147,19 @@ public class Client extends Server {
                 System.out.println(fileName);
             }
         }else{
+            tellServerNodeDead();
             connectToSystem();
         }
 
     }
 
-    public void tellServerNodeDead(){}
+    public void tellServerNodeDead(){
+        List<String> content = new ArrayList<>();
+        content.add(nodeAddress + ";" + nodePort); //pass the dead node information to both directory server
+        SocketUtils socketUtils = new SocketUtils(this.serverAddress, this.serverPort, backupAddress, backupPort,
+                new RequestPackage(6, this.address, this.port, content));
+        System.out.println("node" + content.get(0) + "is dead!");
+        socketUtils.send();
+
+    }
 }

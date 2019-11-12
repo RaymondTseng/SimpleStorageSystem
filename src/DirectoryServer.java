@@ -69,7 +69,7 @@ public class DirectoryServer extends Server implements Runnable {
         boolean flag = socketUtils.send();
 
         if (!flag)
-            return;
+            return;  //if it is the main server, stop here. In case of the backup Server is dead?
 
         RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(false);
         this.filesList = rp.getContent();
@@ -110,6 +110,7 @@ public class DirectoryServer extends Server implements Runnable {
     public void connect(Socket socket) {
         List<String> content = new ArrayList<>();
         content.add(this.addressPortList.get(0));
+       // System.out.println(this.addressPortList.get(0));
         new SocketUtils(socket,
                 new RequestPackage(2, this.address, this.port, content)).send();
     }
@@ -124,6 +125,31 @@ public class DirectoryServer extends Server implements Runnable {
         socketUtils.send();
         socketUtils.setRequestPackage(new RequestPackage(5, this.address, this.port, this.addressPortList));
         socketUtils.send();
+    }
+    public void deleteDeadNodeFromList(Socket socket){
+        SocketUtils socketUtils = new SocketUtils(socket, null);
+        RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
+        String deadNodeAddressPort = rp.getContent().get(0);
+        addressPortList.remove(deadNodeAddressPort);
+        System.out.println("Main Server has deleted node" + deadNodeAddressPort);
+        notifyBackupDeadNode(deadNodeAddressPort);
+
+    }
+
+    public void notifyBackupDeadNode(String deadNodeAddressPort){
+        List<String> content = new ArrayList<>();
+        content.add(deadNodeAddressPort);
+        SocketUtils socketUtils = new SocketUtils(backupAddress, backupPort, new RequestPackage(7, this.address, this.port, content));
+        socketUtils.send();
+        System.out.println("Main server has notified the backup server");
+    }
+
+    public void backupDeleteNodeFromList(Socket socket){
+        SocketUtils socketUtils = new SocketUtils(socket, null);
+        RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
+        String deadNodeAddressPort = rp.getContent().get(0);
+        addressPortList.remove(deadNodeAddressPort);
+        System.out.println("Backup Server has deleted node" + deadNodeAddressPort);
     }
 
 
@@ -170,6 +196,10 @@ public class DirectoryServer extends Server implements Runnable {
                     getFilesList(socket);
                 }else if (rp.getRequestType() == 5){
                     getServerInformation(socket);
+                }else if (rp.getRequestType() == 6){
+                    deleteDeadNodeFromList(socket);
+                }else if (rp.getRequestType() == 7){
+                    backupDeleteNodeFromList(socket);
                 }
 
             } catch (Exception e) {
