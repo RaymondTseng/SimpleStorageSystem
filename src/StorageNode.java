@@ -139,16 +139,17 @@ public class StorageNode extends Server implements Runnable {
         content.add(fileName);
         SocketUtils socketUtils = new SocketUtils(address, port, new RequestPackage(1, this.address, this.port, content));
         socketUtils.send();
-
         socketUtils.sendFileBySocket(this.dataFolder + "/" + fileName);
 
     }
 
-    public void readFile(String fileName, String clientAddress, int clientPort){
-        File content = new File(this.dataFolder + "/" + fileName);
+    public void readFile(String fileName, String clientAddress, int clientPort){  //send a certain file to the input address and port
+        List<String> content = new ArrayList<>();
+        content.add(fileName);
         SocketUtils socketUtils = new SocketUtils(clientAddress, clientPort, new RequestPackage(5, this.address, this.port, content));
         socketUtils.send();
-        
+        socketUtils.sendFileBySocket(this.dataFolder + "/" + fileName);
+
     }
 
     public void register(List<String> addressPortList) throws Exception {

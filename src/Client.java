@@ -11,6 +11,7 @@ public class Client extends Server {
     private int serverPort;
     private String backupAddress;
     private int backupPort;
+    private String cache = "../ClientCache";
 
     public static void main(String[] args){
         Client client = new Client("localhost", 23333, "localhost", 8123, "localhost", 8888);
@@ -90,21 +91,18 @@ public class Client extends Server {
         SocketUtils socketUtils = new SocketUtils(this.nodeAddress, this.nodePort,
                 new RequestPackage(5, this.address, this.port, fileNames));
         boolean flag = socketUtils.send();
-
         if (flag){
-            RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
-            File file;
-            file = rp.getFileContent(); //want to let socket pass the exact file to client
-            try (BufferedReader br = new BufferedReader(new FileReader(file))) { //print file
-                String line = null;
-                while ((line = br.readLine()) != null) {
-                    System.out.println(line);
-                }
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            socketUtils.readFileFromSocket(cache + "/" + fileName);
+//            try (BufferedReader br = new BufferedReader(new FileReader(cache + "/" + fileName))) { //print file
+//                String line = null;
+//                while ((line = br.readLine()) != null) {
+//                    System.out.println(line);
+//                }
+//            } catch (FileNotFoundException e) {
+//                e.printStackTrace();
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
 
         }else{
             connectToSystem();
@@ -144,4 +142,6 @@ public class Client extends Server {
         }
 
     }
+
+    public void tellServerNodeDead(){}
 }
