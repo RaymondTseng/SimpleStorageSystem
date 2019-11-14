@@ -1,5 +1,3 @@
-import javafx.scene.input.KeyCode;
-
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
@@ -9,8 +7,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import static javafx.scene.input.KeyCode.M;
 
 
 public class Evaluation {
@@ -38,9 +34,9 @@ public class Evaluation {
         String[] mainConfig = networkInformation.get(0);
         String[] backupConfig = networkInformation.get(1);
         DirectoryServer mainDS = new DirectoryServer(mainConfig[0], mainConfig[1], Integer.parseInt(mainConfig[2]),
-                    new ArrayList<>(), backupConfig[1], Integer.parseInt(backupConfig[2]), false);
+                    new ArrayList<>(), backupConfig[1], Integer.parseInt(backupConfig[2]), false, true);
         DirectoryServer backupDS = new DirectoryServer(backupConfig[0], backupConfig[1], Integer.parseInt(backupConfig[2]),
-                    new ArrayList<>(), mainConfig[1], Integer.parseInt(mainConfig[2]), true);
+                    new ArrayList<>(), mainConfig[1], Integer.parseInt(mainConfig[2]), true, false);
         int[] ports = new int[]{8124, 8125, 8126, 8127, 8128};
         List<StorageNode> nodesList = new ArrayList<>();
         for (int i = 0; i < nodeNames.length; i++){
