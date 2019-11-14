@@ -7,11 +7,16 @@ import java.util.Scanner;
 public class Client extends Server {
     private String nodeAddress;
     private int nodePort;
-    private String serverAddress;
-    private int serverPort;
+    private String dsAddress;
+    private int dsPort;
     private String backupAddress;
     private int backupPort;
-    private String cache = "../ClientCache";
+    private String cache = "./ClientCache";
+
+    // metric
+    private int messagesExchanged = 0;
+    private int bytesTransferred = 0;
+    private long responseTime = 0;
 
     public static void main(String[] args){
         Client client = new Client("localhost", 23333, "localhost", 8123, "localhost", 8888);
@@ -57,74 +62,96 @@ public class Client extends Server {
     public Client(String address, int port, String dsAddress, int dsPort, String backupAddress, int backupPort) {
         this.address = address;
         this.port = port;
-        this.serverAddress = address; //record the information of the directory server
-        this.serverPort = port;
+        this.dsAddress = dsAddress; //record the information of the directory server
+        this.dsPort = dsPort;
         this.backupAddress = backupAddress;
         this.backupPort = backupPort;
     }
 
     public void connectToSystem() {
 
-        SocketUtils socketUtils = new SocketUtils(address, port, backupAddress, backupPort,
+        SocketUtils socketUtils = new SocketUtils(dsAddress, dsPort, backupAddress, backupPort,
                 new RequestPackage(2, this.address, this.port, null));
         socketUtils.send();
 
         RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
-
+        this.messagesExchanged += 1;
+        this.bytesTransferred += 1;
         String addressPort = rp.getContent().get(0);
         String[] array = addressPort.split(";");
         nodeAddress = array[0];
         nodePort = Integer.parseInt(array[1]);
+        System.out.println("Connect storage node " + array[0] + ":" + array[1]);
     }
 
     public void createNewFile(String fileName) {
         List<String> content = new ArrayList<>();
         content.add(fileName);
+        long startTime = System.nanoTime();
         boolean flag = new SocketUtils(nodeAddress, nodePort,
                 new RequestPackage(3, this.address, this.port, content)).send();
-        if (! flag){
-            tellServerNodeDead();
+        if (!flag){
+            notifyServerNodeDead();
             connectToSystem();
+            long endTime = System.nanoTime();
+            this.responseTime += endTime - startTime;
+            createNewFile(fileName);
+        } else{
+            long endTime = System.nanoTime();
+            this.responseTime += endTime - startTime;
         }
+
 
     }
 
     public void readFile(String fileName){
-        List<String> fileNames = new ArrayList<String>();
-        fileNames.add(fileName);
+        List<String> content = new ArrayList<String>();
+        content.add(fileName);
+        long startTime = System.nanoTime();
         SocketUtils socketUtils = new SocketUtils(this.nodeAddress, this.nodePort,
-                new RequestPackage(5, this.address, this.port, fileNames));
+                new RequestPackage(5, this.address, this.port, content));
         boolean flag = socketUtils.send();
         if (flag){
             String tempPath = cache + "/" + fileName;
-            String intellijAddress = tempPath.substring(1, tempPath.length());
-            socketUtils.readFileFromSocket(intellijAddress);
-            try (BufferedReader br = new BufferedReader(new FileReader(intellijAddress))) { //print file
+            socketUtils.readFileFromSocket(tempPath);
+            long endTime = System.nanoTime();
+            this.responseTime += endTime - startTime;
+            this.messagesExchanged += 1;
+            this.bytesTransferred += socketUtils.getBytesTransferred();
+            try  { //print file
+                BufferedReader br = new BufferedReader(new FileReader(tempPath));
                 String line = null;
                 while ((line = br.readLine()) != null) {
                     System.out.println(line);
                 }
-                File file = new File(intellijAddress);
+                br.close();
+                File file = new File(tempPath);
                 file.delete();
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
 
         }else{
-            tellServerNodeDead();
+            notifyServerNodeDead();
             connectToSystem();
+            long endTime = System.nanoTime();
+            this.responseTime += endTime - startTime;
+            readFile(fileName);
         }
 
     }
 
     public void getFilesListFromDirectoryServer() {
-        SocketUtils socketUtils = new SocketUtils(this.serverAddress, this.serverPort, backupAddress, backupPort,
+        long startTime = System.nanoTime();
+        SocketUtils socketUtils = new SocketUtils(this.dsAddress, this.dsPort, backupAddress, backupPort,
                 new RequestPackage(4, this.address, this.port, null));
         socketUtils.send();
 
         RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
+        long endTime = System.nanoTime();
+        this.responseTime += endTime - startTime;
+        this.messagesExchanged += 1;
+        this.bytesTransferred = socketUtils.getBytesTransferred();
         List<String> fileList = rp.getContent();
 
         for (String fileName : fileList) {
@@ -135,31 +162,52 @@ public class Client extends Server {
 
 
     public void getFilesListFromNode() {
+        long startTime = System.nanoTime();
         SocketUtils socketUtils = new SocketUtils(this.nodeAddress, this.nodePort,
                 new RequestPackage(2, this.address, this.port, null));
         boolean flag = socketUtils.send();
 
         if (flag){
             RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
+            long endTime = System.nanoTime();
+            this.responseTime += endTime - startTime;
+            this.messagesExchanged += 1;
+            this.bytesTransferred += socketUtils.getBytesTransferred();
+
             List<String> fileList = rp.getContent();
 
             for (String fileName : fileList) {
                 System.out.println(fileName);
             }
         }else{
-            tellServerNodeDead();
+            notifyServerNodeDead();
             connectToSystem();
+            long endTime = System.nanoTime();
+            this.responseTime += endTime - startTime;
+            getFilesListFromNode();
         }
 
     }
 
-    public void tellServerNodeDead(){
+    public void notifyServerNodeDead(){
         List<String> content = new ArrayList<>();
-        content.add(nodeAddress + ";" + nodePort); //pass the dead node information to both directory server
-        SocketUtils socketUtils = new SocketUtils(this.serverAddress, this.serverPort, backupAddress, backupPort,
+        content.add(nodeAddress + ";" + String.valueOf(nodePort)); //pass the dead node information to both directory server
+        SocketUtils socketUtils = new SocketUtils(this.dsAddress, this.dsPort, backupAddress, backupPort,
                 new RequestPackage(6, this.address, this.port, content));
-        System.out.println("node" + content.get(0) + "is dead!");
         socketUtils.send();
+        System.out.println("node" + content.get(0) + "is dead!");
 
+    }
+
+    public int getMessagesExchanged() {
+        return messagesExchanged;
+    }
+
+    public int getBytesTransferred() {
+        return bytesTransferred;
+    }
+
+    public long getResponseTime() {
+        return responseTime;
     }
 }

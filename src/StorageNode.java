@@ -17,6 +17,11 @@ public class StorageNode extends Server implements Runnable {
     private int dsPort;
     private String backupAddress;
     private int backupPort;
+    private Thread currentThread;
+
+    // metric
+    private int messagesExchanged = 0;
+    private int bytesTransferred = 0;
 
     public static void main(String[] args) throws IOException{
         if (args.length != 0){
@@ -43,9 +48,10 @@ public class StorageNode extends Server implements Runnable {
                 new ThreadPoolExecutor.AbortPolicy());
         initializeLocalFiles();
         setDirectoryServer();
-        setBackupServer();
         System.out.println("Activate " + name + " " + address + " " + String.valueOf(port));
-        new Thread(this).start();
+        this.currentThread = new Thread(this);
+        currentThread.start();
+
     }
 
     /**
@@ -57,9 +63,10 @@ public class StorageNode extends Server implements Runnable {
         File[] files = file.listFiles();
         if (files == null)
             return;
-        for (int i = 0; i < files.length; i++) {
-            System.out.println("Register " + files[i].getName());
-            filesList.add(files[i].getName().trim());
+        synchronized (filesList){
+            for (int i = 0; i < files.length; i++) {
+                filesList.add(files[i].getName().trim());
+            }
         }
     }
 
@@ -70,15 +77,21 @@ public class StorageNode extends Server implements Runnable {
     }
 
     public void addFileToSystem(String fileName) {
-        filesList.add(fileName);
+        synchronized (this.filesList){
+            filesList.add(fileName);
+        }
+
         List<String> content = new ArrayList<>();
         content.add(fileName);
         SocketUtils socketUtils = new SocketUtils(this.dsAddress, this.dsPort, backupAddress, backupPort,
                 new RequestPackage(3, this.getAddress(), this.getPort(), content));
-        socketUtils.send();
-
+        boolean flag = socketUtils.send();
+        if (!flag){
+            System.out.println("Fail to add file to directory server!");
+        }
 
         RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
+        this.bytesTransferred += socketUtils.getBytesTransferred();
         for (String addressPort : rp.getContent()) {  //content should also contain this node's address and port: minus self
             String[] array = addressPort.split(";");
             String address = array[0];
@@ -111,15 +124,20 @@ public class StorageNode extends Server implements Runnable {
     }
 
     public void receiveFileToLocal(String fileName, Socket socket) throws Exception {
-        if (filesList.contains(fileName)) {
-            socket.close();
-            return;
+        synchronized (this.filesList){
+            if (filesList.contains(fileName)) {
+                socket.close();
+                return;
+            }
         }
+
 
         SocketUtils socketUtils = new SocketUtils(socket, null);
         socketUtils.readFileFromSocket(dataFolder + "/" + fileName);
-
-        filesList.add(fileName);
+        this.bytesTransferred += socketUtils.getBytesTransferred();
+        synchronized (this.filesList){
+            filesList.add(fileName);
+        }
         System.out.println("Download " + fileName + " successfully!");
 
 
@@ -127,9 +145,12 @@ public class StorageNode extends Server implements Runnable {
 
 
     public void sendAllLocalFiles(String address, int port){  //used in dead node recover
-        for (String fileName : filesList){
-            sendFile(fileName, address, port);
+        synchronized (filesList){
+            for (String fileName : filesList){
+                sendFile(fileName, address, port);
+            }
         }
+
     }
 
     public void sendFile(String fileName, String address, int port) {  //send a certain file to the input address and port
@@ -138,26 +159,39 @@ public class StorageNode extends Server implements Runnable {
         List<String> content = new ArrayList<>();
         content.add(fileName);
         SocketUtils socketUtils = new SocketUtils(address, port, new RequestPackage(1, this.address, this.port, content));
-        socketUtils.send();
-        socketUtils.sendFileBySocket(this.dataFolder + "/" + fileName);
+        System.out.println("Storage node " + this.name + " send file " + fileName + " to " + address + String.valueOf(port));
+        boolean flag = socketUtils.send();
+        if (flag){
+            socketUtils.sendFileBySocket(this.dataFolder + "/" + fileName);
+        }else{
+            List<String> temp = new ArrayList<>();
+            temp.add(address + ";" + String.valueOf(port));
+            new SocketUtils(dsAddress, dsPort, new RequestPackage(6, this.address, this.port, temp)).send();
+        }
+
 
     }
 
     public void readFile(String fileName, Socket socket){  //send a certain file to the input address and port
         SocketUtils socketUtils = new SocketUtils(socket, null);
         socketUtils.sendFileBySocket(this.dataFolder + "/" + fileName);
+        System.out.println("Storage node send: " + fileName);
 
     }
 
-    public void register(List<String> addressPortList) throws Exception {
+    public void register(List<String> addressPortList) {
         for (String addressPort : addressPortList) {
+            System.out.println("Ready to send: " + addressPort);
             String[] array = addressPort.split(";");
             String address = array[0];
             int port = Integer.parseInt(array[1]);
-            for (String fileName : filesList) {
-                sendFile(fileName, address, port);
+            synchronized (filesList){
+                for (String fileName : filesList) {
+                    sendFile(fileName, address, port);
 
+                }
             }
+
         }
     }
 
@@ -166,10 +200,19 @@ public class StorageNode extends Server implements Runnable {
                 new RequestPackage(0, this.address, this.port, this.filesList)).send();
     }
 
-    private void setBackupServer() {
-        new SocketUtils(backupAddress, backupPort,
-                new RequestPackage(0, this.address, this.port, this.filesList)).send();
+    public int getMessagesExchanged() {
+        return messagesExchanged;
     }
+
+    public int getBytesTransferred() {
+        return bytesTransferred;
+    }
+
+    public void stop() throws IOException {
+        this.serverSocket.close();
+        this.currentThread.stop();
+    }
+
 
     @Override
     public void run() {
@@ -195,7 +238,10 @@ public class StorageNode extends Server implements Runnable {
         public void run() {
             ObjectInputStream ois = null;
             try {
-                ois = new ObjectInputStream(this.socket.getInputStream());
+                InputStream is = this.socket.getInputStream();
+                ois = new ObjectInputStream(is);
+                messagesExchanged += 1;
+                bytesTransferred += is.available();
                 RequestPackage rp = (RequestPackage) ois.readObject();
                 // different types mean different requests
                 if (rp.getRequestType() == 0) {
