@@ -132,7 +132,7 @@ Enter 5 : Exit.
 1.txt
 4.txt
 ```
-#### We can exit the interaction by return `4` in command line.
+#### We can exit the interaction by return `5` in command line.
 ```Java
 5
 
