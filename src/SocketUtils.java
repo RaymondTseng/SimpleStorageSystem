@@ -1,7 +1,7 @@
 import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
-import java.net.UnknownHostException;
+
 
 public class SocketUtils {
     private String address;
@@ -13,6 +13,8 @@ public class SocketUtils {
     private Socket socket;
 
     private RequestPackage rp;
+
+    private int bytesTransferred = 0;
 
     public SocketUtils(String address, int port, RequestPackage rp){
         this.address = address;
@@ -71,7 +73,9 @@ public class SocketUtils {
 
     public Object readObjectFromSocket(boolean ifClose){
         try {
-            ObjectInputStream ois = new ObjectInputStream(this.socket.getInputStream());
+            InputStream is = this.socket.getInputStream();
+            this.bytesTransferred += is.available();
+            ObjectInputStream ois = new ObjectInputStream(is);
             Object obj = ois.readObject();
             if (ifClose)
                 ois.close();
@@ -84,7 +88,9 @@ public class SocketUtils {
 
     synchronized public void readFileFromSocket(String filePath){
         try {
-            BufferedInputStream bis = new BufferedInputStream(this.socket.getInputStream());
+            InputStream is = this.socket.getInputStream();
+            this.bytesTransferred += is.available();
+            BufferedInputStream bis = new BufferedInputStream(is);
             BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath));
 
             byte [] buf = new byte [1024];
@@ -113,9 +119,14 @@ public class SocketUtils {
             bos.flush();
             bos.close();
             bis.close();
+
         }catch (IOException e){
             e.printStackTrace();
         }
+    }
+
+    public int getBytesTransferred() {
+        return bytesTransferred;
     }
 
     public void setRequestPackage(RequestPackage rp) {

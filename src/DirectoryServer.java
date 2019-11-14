@@ -1,5 +1,6 @@
 import javax.management.ObjectName;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -17,8 +18,14 @@ public class DirectoryServer extends Server implements Runnable {
     private String backupAddress;
     private int backupPort;
     private boolean ifBackup;
+    private Thread currentThread;
     // Manage threads
     private ThreadPoolExecutor threadPoolExecutor;
+
+    // metric
+    private int messagesExchanged = 0;
+    private int bytesTransferred = 0;
+
 
     public static void main(String[] args) throws IOException{
         if (args.length != 0){
@@ -47,7 +54,7 @@ public class DirectoryServer extends Server implements Runnable {
         this.backupPort = backupPort;
         this.ifBackup = ifBackup;
 
-        this.synchronizeWithBackupServer();
+        this.recoveryFromBackupServer();
 
         if (this.addressPortList == null || this.filesList == null){
             this.addressPortList = addressPortList;
@@ -60,52 +67,72 @@ public class DirectoryServer extends Server implements Runnable {
                 TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), Executors.defaultThreadFactory(),
                 new ThreadPoolExecutor.AbortPolicy());
         System.out.println("Activate " + name + " " + address + " " + String.valueOf(port));
-        new Thread(this).start();
+        this.currentThread = new Thread(this);
+        currentThread.start();
     }
 
-    private void synchronizeWithBackupServer(){
-        SocketUtils socketUtils = new SocketUtils(backupAddress, backupPort,
-                new RequestPackage(5, this.address, this.port, null));
-        boolean flag = socketUtils.send();
+    private void recoveryFromBackupServer(){
+        new SocketUtils(this.backupAddress, this.backupPort,
+                new RequestPackage(1, this.address, this.port, null)).send();
+    }
 
-        if (!flag)
-            return;  //if it is the main server, stop here. In case of the backup Server is dead?
 
-        RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(false);
-        this.filesList = rp.getContent();
-
-        rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
+    synchronized private void synchronizeFromBackupServer(List<String> content, Socket socket){
+        this.filesList = content;
+        SocketUtils socketUtils = new SocketUtils(socket, null);
+        RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
+        this.bytesTransferred += socketUtils.getBytesTransferred();
+        this.messagesExchanged += 1;
         this.addressPortList = rp.getContent();
+    }
+
+    private void synchronizeToBackupServer(){
+        SocketUtils socketUtils = null;
+
+        synchronized (this.filesList){
+            socketUtils = new SocketUtils(this.backupAddress, this.backupPort,
+                    new RequestPackage(5, this.address, this.port, this.filesList));
+            socketUtils.send();
+        }
+        synchronized(this.addressPortList){
+            socketUtils.setRequestPackage(new RequestPackage(5, this.address, this.port, this.addressPortList));
+            socketUtils.send();
+        }
+
     }
 
     synchronized public void register(RequestPackage rp) {
         List<String> filesList = (List<String>) rp.getContent();
-        for (String fileName : filesList) {
-            if (!this.filesList.contains(fileName)) {
-                this.filesList.add(fileName);
+        synchronized (this.filesList){
+            for (String fileName : filesList) {
+                if (!this.filesList.contains(fileName)) {
+                    System.out.println("Register " + fileName);
+                    this.filesList.add(fileName);
+                }
             }
         }
-        if (this.addressPortList.size() == 0){
-            this.addressPortList.add(rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
-            return;
-        }
+
+
         this.addressPortList.add(rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
-        new SocketUtils(rp.getRequestAddress(), rp.getRequestPort(),
-                new RequestPackage(0, this.address, this.port, this.addressPortList)).send();
 
-        String[] array = this.addressPortList.get(0).split(";");
-        String address = array[0];
-        int port = Integer.parseInt(array[1]);
-        List<String> content = new ArrayList<>();
-        content.add(rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
-        new SocketUtils(address, port, new RequestPackage(4, this.address, this.port, content)).send();
+        if (this.addressPortList.size() > 1){
+            synchronized (this.addressPortList){
+                new SocketUtils(rp.getRequestAddress(), rp.getRequestPort(),
+                        new RequestPackage(0, this.address, this.port, this.addressPortList)).send();
+            }
+
+            String[] array = this.addressPortList.get(0).split(";");
+            String address = array[0];
+            int port = Integer.parseInt(array[1]);
+            List<String> content = new ArrayList<>();
+            content.add(rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
+            new SocketUtils(address, port, new RequestPackage(4, this.address, this.port, content)).send();
+        }
+        synchronizeToBackupServer();
+
 
     }
 
-    public void getAllNodes(Socket socket) {
-        new SocketUtils(socket,
-                new RequestPackage(3, this.getAddress(), this.getPort(), this.addressPortList)).send();
-    }
 
     public void connect(Socket socket) {
         List<String> content = new ArrayList<>();
@@ -116,41 +143,51 @@ public class DirectoryServer extends Server implements Runnable {
     }
 
     public void getFilesList(Socket socket) {
-        new SocketUtils(socket,
-                new RequestPackage(4, this.address, this.port, this.filesList)).send();
+        synchronized (this.filesList){
+            new SocketUtils(socket,
+                    new RequestPackage(4, this.address, this.port, this.filesList)).send();
+        }
     }
 
-    public void getServerInformation(Socket socket){
-        SocketUtils socketUtils = new SocketUtils(socket, new RequestPackage(5, this.address, this.port, this.filesList));
-        socketUtils.send();
-        socketUtils.setRequestPackage(new RequestPackage(5, this.address, this.port, this.addressPortList));
-        socketUtils.send();
+
+    synchronized public void addNewFile(String fileName, Socket socket){
+        synchronized (this.filesList){
+            this.filesList.add(fileName);
+        }
+        System.out.println("Add " + fileName + " to Directory Server!");
+        synchronized (this.addressPortList){
+            new SocketUtils(socket,
+                    new RequestPackage(3, this.getAddress(), this.getPort(), this.addressPortList)).send();
+        }
+
+        synchronizeToBackupServer();
     }
-    public void deleteDeadNodeFromList(Socket socket){
-        SocketUtils socketUtils = new SocketUtils(socket, null);
-        RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
-        String deadNodeAddressPort = rp.getContent().get(0);
-        addressPortList.remove(deadNodeAddressPort);
-        System.out.println("Main Server has deleted node" + deadNodeAddressPort);
-        notifyBackupDeadNode(deadNodeAddressPort);
+
+    public void deleteDeadNodeFromList(String addressPort){
+        synchronized (this.addressPortList){
+            if (this.addressPortList.contains(addressPort)){
+                addressPortList.remove(addressPort);
+            }
+        }
+
+        System.out.println("Main Server has deleted node " + addressPort);
+        synchronizeToBackupServer();
 
     }
 
-    public void notifyBackupDeadNode(String deadNodeAddressPort){
-        List<String> content = new ArrayList<>();
-        content.add(deadNodeAddressPort);
-        SocketUtils socketUtils = new SocketUtils(backupAddress, backupPort, new RequestPackage(7, this.address, this.port, content));
-        socketUtils.send();
-        System.out.println("Main server has notified the backup server");
+    public int getMessagesExchanged() {
+        return messagesExchanged;
     }
 
-    public void backupDeleteNodeFromList(Socket socket){
-        SocketUtils socketUtils = new SocketUtils(socket, null);
-        RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
-        String deadNodeAddressPort = rp.getContent().get(0);
-        addressPortList.remove(deadNodeAddressPort);
-        System.out.println("Backup Server has deleted node" + deadNodeAddressPort);
+    public int getBytesTransferred() {
+        return bytesTransferred;
     }
+
+    public void stop() throws IOException {
+        this.serverSocket.close();
+        this.currentThread.stop();
+    }
+
 
 
 
@@ -178,28 +215,28 @@ public class DirectoryServer extends Server implements Runnable {
         public void run() {
             ObjectInputStream ois = null;
             try {
-                ois = new ObjectInputStream(this.socket.getInputStream());
+                InputStream is = this.socket.getInputStream();
+                ois = new ObjectInputStream(is);
+                messagesExchanged += 1;
+                bytesTransferred += is.available();
                 RequestPackage rp = (RequestPackage) ois.readObject();
                 // different types mean different requests
                 if (rp.getRequestType() == 0) {
                     register(rp);
                     ois.close();
                 } else if (rp.getRequestType() == 1) {
-
+                    synchronizeToBackupServer();
                 } else if (rp.getRequestType() == 2) {
                     connect(socket);
                 } else if (rp.getRequestType() == 3) {
-                    filesList.add(rp.getContent().get(0));
-                    getAllNodes(socket);
-                    synchronizeWithBackupServer();
+                    addNewFile(rp.getContent().get(0), socket);
                 }else if (rp.getRequestType() == 4) {
                     getFilesList(socket);
                 }else if (rp.getRequestType() == 5){
-                    getServerInformation(socket);
+                    synchronizeFromBackupServer(rp.getContent(), socket);
                 }else if (rp.getRequestType() == 6){
-                    deleteDeadNodeFromList(socket);
-                }else if (rp.getRequestType() == 7){
-                    backupDeleteNodeFromList(socket);
+                    deleteDeadNodeFromList(rp.getContent().get(0));
+                    ois.close();
                 }
 
             } catch (Exception e) {
