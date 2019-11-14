@@ -18,127 +18,127 @@ A storage node could down at anytime. Suppose the storage node which connected t
 
 For example, if `Client 1` is connected to `Node 1`. The client wants to add a new file to node however the node is down, it will not successfully send the message. Then `Client 1` will firstly send a message to the directory server to tell it `Node 1`'s address and port, and then require a new node `Node 2`. After `new file` is successfully added to `Node 2`, the directory will get a message from it and return all node's address and port. Then `Node 2` will send `new file` to all other nodes. The following figure is a flow chart of adding a new file to the system. <br>
 
+![](https://github.com/RaymondTseng/SimpleStorageSystem/blob/master/fault_tolerant_storage_system.jpg)
 
 
-
-### Manual Mode
-#### Run `main( )` in `P2PNetwork.java` with no argument, the system will access manual mode. It will firstly go through the registration process for the files currently exist. This process includes the registration of all the files in each Peer's folder on Indexing Server.
+## Manual
+#### Run `sh run.sh` in the terminal, it will help us set up the directory servers and nodes in the system. Then, run `Client.java` to get connection with the system:
 ```Java
--------------------------------------------------
-Activate indexingServer localhost 7123
--------------------------------------------------
--------------------------------------------------
-Register lion.txt
-Register elephant.txt
-Register cat.txt
-Activate a localhost 7124
--------------------------------------------------
--------------------------------------------------
-Register dog.txt
-Register lion.txt
-Register giraffe.txt
-Activate b localhost 7125
--------------------------------------------------
--------------------------------------------------
-Register leopard.txt
-Register elephant.txt
-Activate c localhost 7126
--------------------------------------------------
--------------------------------------------------
-Register horse.txt
-Register monkey.txt
-Activate d localhost 7127
--------------------------------------------------
--------------------------------------------------
-Register tiger.txt
-Register dog.txt
-Register deer.txt
-Activate e localhost 7128
--------------------------------------------------
-Register horse.txt Successfully!
-Register lion.txt Successfully!
-Register elephant.txt Successfully!
-Register monkey.txt Successfully!
-Register lion.txt Successfully!
-Register dog.txt Successfully!
-Register deer.txt Successfully!
-Register giraffe.txt Successfully!
-Register tiger.txt Successfully!
-Register dog.txt Successfully!
-Register cat.txt Successfully!
-Register leopard.txt Successfully!
-Register elephant.txt Successfully!
-
-Set up a peer by entering the PEER ID (a, b, c, d, e) :)
-```
-#### We can select a Peer to operate by its name in the command line.
-
-```Java
-Set up a peer by entering the PEER ID (a, b, c, d, e) :)
-a
 *******************************************************
-Enter 1 : Create and register a file.
-Enter 2 : Search a file on peers.
-Enter 3 : Download file from a peer.
-Enter 4 : To exit the program.
+Enter 1 : Get Files List From Storage Node.
+Enter 2 : Get Files List From Directory Server.
+Enter 3 : Read File
+Enter 4 : Add new file.
+Enter 5 : Exit.
 *******************************************************
 ```
-#### We can create a new file `a_newfile` in `a`. The new file will be stored in `a`'s folder and automatically registered in indexing server.
+#### We can get the file list from storage node:
+
 ```Java
 *******************************************************
-Enter 1 : Create and register a file.
-Enter 2 : Search a file on peers.
-Enter 3 : Download file from a peer.
-Enter 4 : To exit the program.
+Enter 1 : Get Files List From Storage Node.
+Enter 2 : Get Files List From Directory Server.
+Enter 3 : Read File
+Enter 4 : Add new file.
+Enter 5 : Exit.
 *******************************************************
 1
-Enter the file name: 
-a_newfile
-Create a_newfile Successfully!
-*******************************************************
+3.txt
+2.txt
+1.txt
 ```
-#### We can let `a` search for a certain file on its peers. `a` will send a request with the file name to the indexing server. The indexing server will return the addresses and ports of the peers holding this file to `a`.
+#### We can also get file list from the directory server, which should give us the same file list when the network is running without failure:
 ```Java
 *******************************************************
-Enter 1 : Create and register a file.
-Enter 2 : Search a file on peers.
-Enter 3 : Download file from a peer.
-Enter 4 : To exit the program.
+Enter 1 : Get Files List From Storage Node.
+Enter 2 : Get Files List From Directory Server.
+Enter 3 : Read File
+Enter 4 : Add new file.
+Enter 5 : Exit.
 *******************************************************
 2
-Enter the file name: 
-dog.txt
-Finding dog.txt
-File exists in
-localhost;7128
-localhost;7125
+3.txt
+2.txt
+1.txt
 ```
-#### We can let `a` download a certain file on its peers. This command includes searching for the addresses and the ports of the peers holding this file in indexing server and the downloading process. `a` will send a request to the peers holding the target file and those peers will send the target file back to `a`. The latest downloaded file will be also registered in indexing server.
+#### If we kill the process of listening on main directory server's port, which means the main server is down, we can still get the file list from the back-up server:
 ```Java
 *******************************************************
-Enter 1 : Create and register a file.
-Enter 2 : Search a file on peers.
-Enter 3 : Download file from a peer.
-Enter 4 : To exit the program.
+Enter 1 : Get Files List From Storage Node.
+Enter 2 : Get Files List From Directory Server.
+Enter 3 : Read File
+Enter 4 : Add new file.
+Enter 5 : Exit.
+*******************************************************
+2
+use backup
+3.txt
+2.txt
+1.txt
+```
+
+#### We can read a file in the storage node:
+```Java
+*******************************************************
+Enter 1 : Get Files List From Storage Node.
+Enter 2 : Get Files List From Directory Server.
+Enter 3 : Read File
+Enter 4 : Add new file.
+Enter 5 : Exit.
 *******************************************************
 3
-Enter the file name: 
-dog.txt
-Finding dog.txt
-File exists in
-localhost;7125
-localhost;7128
-Download dog.txt successfully!
+Please enter the file's name
+1.txt
+1111111111
+```
+#### We can also add a new file to the system:
+```Java
+*******************************************************
+Enter 1 : Get Files List From Storage Node.
+Enter 2 : Get Files List From Directory Server.
+Enter 3 : Read File
+Enter 4 : Add new file.
+Enter 5 : Exit.
+*******************************************************
+4
+Please enter the file's name
+4.txt
+```
+```Java
+*******************************************************
+Enter 1 : Get Files List From Storage Node.
+Enter 2 : Get Files List From Directory Server.
+Enter 3 : Read File
+Enter 4 : Add new file.
+Enter 5 : Exit.
+*******************************************************
+1
+3.txt
+2.txt
+1.txt
+4.txt
+```
+```Java
+*******************************************************
+Enter 1 : Get Files List From Storage Node.
+Enter 2 : Get Files List From Directory Server.
+Enter 3 : Read File
+Enter 4 : Add new file.
+Enter 5 : Exit.
+*******************************************************
+2
+3.txt
+2.txt
+1.txt
+4.txt
 ```
 #### We can exit the interaction by return `4` in command line.
 ```Java
-4
+5
 
 Process finished with exit code 0
 ```
 
-### Test mode
-We create a test mode for this system to test its performance on all kinds of circumstances. We can run `main (M, N, F, C)` in `P2PNetwork` where M represents the number of files, N represents the number of  sequential requests and F represents the time gap between 2 sequential request. For example, we set the argument `M = 50`, `N = 20`, `F = 1000` and `C = 1`. The system is set up with 5 peers originally.
 
 
 
