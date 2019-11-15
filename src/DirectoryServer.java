@@ -41,17 +41,17 @@ public class DirectoryServer extends Server implements Runnable {
             List<String> addressPortList = new ArrayList<>();
             if (!ifBackup){
                 new DirectoryServer(mainConfig[0], mainConfig[1], Integer.parseInt(mainConfig[2]),
-                        addressPortList, backupConfig[1], Integer.parseInt(backupConfig[2]), ifBackup);
+                        addressPortList, backupConfig[1], Integer.parseInt(backupConfig[2]), ifBackup, true);
             }else{
                 new DirectoryServer(backupConfig[0], backupConfig[1], Integer.parseInt(backupConfig[2]),
-                        addressPortList, mainConfig[1], Integer.parseInt(mainConfig[2]), ifBackup);
+                        addressPortList, mainConfig[1], Integer.parseInt(mainConfig[2]), ifBackup, true);
             }
         }
 
     }
 
     public DirectoryServer(String name, String address, int port, List<String> addressPortList, String backupAddress,
-                           int backupPort, boolean ifBackup) throws IOException {
+                           int backupPort, boolean ifBackup, boolean isInit) throws IOException {
         this.name = name;
         this.address = address;
         this.port = port;
@@ -59,7 +59,9 @@ public class DirectoryServer extends Server implements Runnable {
         this.backupPort = backupPort;
         this.ifBackup = ifBackup;
 
-        this.recoveryFromBackupServer();
+        if(!isInit) {
+            this.recoveryFromBackupServer();
+        }
 
         if (this.addressPortList == null || this.filesList == null){
             this.addressPortList = addressPortList;

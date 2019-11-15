@@ -3,7 +3,8 @@ import java.net.ConnectException;
 import java.net.Socket;
 
 
-public class SocketUtils {
+public class
+SocketUtils {
     private String address;
     private int port;
 
@@ -55,7 +56,7 @@ public class SocketUtils {
         return flag;
     }
 
-    private boolean sendBackup(){
+    public boolean sendBackup(){
         boolean flag = false;
         if (this.backupAddress == null)
             return false;
@@ -105,6 +106,7 @@ public class SocketUtils {
             e.printStackTrace();
         }
     }
+
 
     synchronized public void sendFileBySocket(String filePath){
         try {
