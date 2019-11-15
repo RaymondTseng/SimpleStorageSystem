@@ -77,7 +77,7 @@ public class Client extends Server {
         RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
         this.messagesExchanged += 1;
         this.bytesTransferred += 1;
-        String addressPort = rp.getContent().get(0);
+        String addressPort = ((List<String>) rp.getContent()).get(0);
         String[] array = addressPort.split(";");
         nodeAddress = array[0];
         nodePort = Integer.parseInt(array[1]);
@@ -152,7 +152,7 @@ public class Client extends Server {
         this.responseTime += endTime - startTime;
         this.messagesExchanged += 1;
         this.bytesTransferred = socketUtils.getBytesTransferred();
-        List<String> fileList = rp.getContent();
+        List<String> fileList = (List<String>) rp.getContent();
 
         for (String fileName : fileList) {
             System.out.println(fileName);
@@ -174,7 +174,7 @@ public class Client extends Server {
             this.messagesExchanged += 1;
             this.bytesTransferred += socketUtils.getBytesTransferred();
 
-            List<String> fileList = rp.getContent();
+            List<String> fileList = (List<String>) rp.getContent();
 
             for (String fileName : fileList) {
                 System.out.println(fileName);

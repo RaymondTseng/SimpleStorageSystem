@@ -10,7 +10,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import static javafx.scene.input.KeyCode.M;
 
 
 public class Evaluation {
@@ -47,7 +46,6 @@ public class Evaluation {
             StorageNode node = new StorageNode(nodeNames[i], "localhost", ports[i], folderPath + "/" + nodeNames[i],
                     mainConfig[1], Integer.parseInt(mainConfig[2]), backupConfig[1], Integer.parseInt(backupConfig[2]));
             nodesList.add(node);
-            Thread.sleep(1000);
         }
         List<Client> clientsList = new ArrayList<>();
         for (int i = 0; i < C; i++){

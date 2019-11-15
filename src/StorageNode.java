@@ -92,7 +92,8 @@ public class StorageNode extends Server implements Runnable {
 
         RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
         this.bytesTransferred += socketUtils.getBytesTransferred();
-        for (String addressPort : rp.getContent()) {  //content should also contain this node's address and port: minus self
+        content = (List<String>) rp.getContent();
+        for (String addressPort : content) {  //content should also contain this node's address and port: minus self
             String[] array = addressPort.split(";");
             String address = array[0];
             int port = Integer.parseInt(array[1]);
@@ -139,23 +140,17 @@ public class StorageNode extends Server implements Runnable {
             filesList.add(fileName);
         }
         System.out.println("Download " + fileName + " successfully!");
+        new SocketUtils(dsAddress, dsPort, new RequestPackage(7, this.address, this.port, fileName)).send();
 
 
     }
 
-
-    public void sendAllLocalFiles(String address, int port){  //used in dead node recover
-        synchronized (filesList){
-            for (String fileName : filesList){
-                sendFile(fileName, address, port);
-            }
-        }
-
-    }
 
     public void sendFile(String fileName, String address, int port) {  //send a certain file to the input address and port
         if (port == this.port && address.equals(this.address))
             return;
+        if (!this.filesList.contains(fileName))
+            return;;
         List<String> content = new ArrayList<>();
         content.add(fileName);
         SocketUtils socketUtils = new SocketUtils(address, port, new RequestPackage(1, this.address, this.port, content));
@@ -245,20 +240,25 @@ public class StorageNode extends Server implements Runnable {
                 RequestPackage rp = (RequestPackage) ois.readObject();
                 // different types mean different requests
                 if (rp.getRequestType() == 0) {
-                    register(rp.getContent());
+                    register((List<String>) rp.getContent());
                     ois.close();
                 } else if (rp.getRequestType() == 1) {
-                    receiveFileToLocal(rp.getContent().get(0), socket);
+                    List<String> content = (List<String>) rp.getContent();
+                    receiveFileToLocal(content.get(0), socket);
                 } else if (rp.getRequestType() == 2) {
                     getFilesList(socket);
                 } else if (rp.getRequestType() == 3) {
-                    createFile(rp.getContent().get(0));
+                    List<String> content = (List<String>) rp.getContent();
+                    createFile(content.get(0));
                     ois.close();
                 }else if (rp.getRequestType() == 4){
-                    String[] array = rp.getContent().get(0).split(";");
-                    sendAllLocalFiles(array[0], Integer.parseInt(array[1]));
+                    List<String> content = (List<String>) rp.getContent();
+                    String[] array = (content.get(0).split(";"));
+                    String fileName = content.get(1);
+                    sendFile(fileName, array[0], Integer.parseInt(array[1]));
                 }else if (rp.getRequestType() == 5){
-                    readFile(rp.getContent().get(0), socket);
+                    List<String> content = (List<String>) rp.getContent();
+                    readFile(content.get(0), socket);
                 }
 
             } catch (Exception e) {

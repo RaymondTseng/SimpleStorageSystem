@@ -1,4 +1,3 @@
-import javax.management.ObjectName;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -13,18 +12,24 @@ import java.util.concurrent.TimeUnit;
 public class DirectoryServer extends Server implements Runnable {
     private String name;
     private List<String> filesList;
+    // deal with concurrent new nodes
+    private Map<String, Set> filesRecorder;
     private List<String> addressPortList;
     private ServerSocket serverSocket;
     private String backupAddress;
     private int backupPort;
     private boolean ifBackup;
     private Thread currentThread;
+
     // Manage threads
     private ThreadPoolExecutor threadPoolExecutor;
 
     // metric
     private int messagesExchanged = 0;
     private int bytesTransferred = 0;
+
+    // implement polling algorithm
+    private int counter = 0;
 
 
     public static void main(String[] args) throws IOException{
@@ -59,6 +64,7 @@ public class DirectoryServer extends Server implements Runnable {
         if (this.addressPortList == null || this.filesList == null){
             this.addressPortList = addressPortList;
             this.filesList = new ArrayList<>();
+            this.filesRecorder = new HashMap<>();
         }
 
 
@@ -80,10 +86,12 @@ public class DirectoryServer extends Server implements Runnable {
     synchronized private void synchronizeFromBackupServer(List<String> content, Socket socket){
         this.filesList = content;
         SocketUtils socketUtils = new SocketUtils(socket, null);
-        RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
+        RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(false);
+        this.addressPortList = (List<String>) rp.getContent();
+        rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
         this.bytesTransferred += socketUtils.getBytesTransferred();
         this.messagesExchanged += 1;
-        this.addressPortList = rp.getContent();
+        this.filesRecorder = (Map<String, Set>) rp.getContent();
     }
 
     private void synchronizeToBackupServer(){
@@ -91,11 +99,15 @@ public class DirectoryServer extends Server implements Runnable {
 
         synchronized (this.filesList){
             socketUtils = new SocketUtils(this.backupAddress, this.backupPort,
-                    new RequestPackage(5, this.address, this.port, this.filesList));
+                    new RequestPackage<>(5, this.address, this.port, this.filesList));
             socketUtils.send();
         }
         synchronized(this.addressPortList){
-            socketUtils.setRequestPackage(new RequestPackage(5, this.address, this.port, this.addressPortList));
+            socketUtils.setRequestPackage(new RequestPackage<>(5, this.address, this.port, this.addressPortList));
+            socketUtils.send();
+        }
+        synchronized(this.filesRecorder){
+            socketUtils.setRequestPackage(new RequestPackage<>(5, this.address, this.port, this.filesRecorder));
             socketUtils.send();
         }
 
@@ -104,10 +116,15 @@ public class DirectoryServer extends Server implements Runnable {
     synchronized public void register(RequestPackage rp) {
         List<String> filesList = (List<String>) rp.getContent();
         synchronized (this.filesList){
-            for (String fileName : filesList) {
-                if (!this.filesList.contains(fileName)) {
-                    System.out.println("Register " + fileName);
-                    this.filesList.add(fileName);
+            synchronized (this.filesRecorder){
+                for (String fileName : filesList) {
+                    if (!this.filesList.contains(fileName)) {
+                        System.out.println("Register " + fileName);
+                        this.filesList.add(fileName);
+                        Set<String> set = new HashSet<>();
+                        set.add(rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
+                        this.filesRecorder.put(fileName, set);
+                    }
                 }
             }
         }
@@ -120,13 +137,17 @@ public class DirectoryServer extends Server implements Runnable {
                 new SocketUtils(rp.getRequestAddress(), rp.getRequestPort(),
                         new RequestPackage(0, this.address, this.port, this.addressPortList)).send();
             }
+            for (Map.Entry<String, Set> entry : this.filesRecorder.entrySet()){
+                String fileName = entry.getKey();
+                String[] array = ((String) entry.getValue().iterator().next()).split(";");
+                String address = array[0];
+                int port = Integer.parseInt(array[1]);
+                List<String> content = new ArrayList<>();
+                content.add(rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
+                content.add(fileName);
+                new SocketUtils(address, port, new RequestPackage(4, this.address, this.port, content)).send();
+            }
 
-            String[] array = this.addressPortList.get(0).split(";");
-            String address = array[0];
-            int port = Integer.parseInt(array[1]);
-            List<String> content = new ArrayList<>();
-            content.add(rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
-            new SocketUtils(address, port, new RequestPackage(4, this.address, this.port, content)).send();
         }
         synchronizeToBackupServer();
 
@@ -136,7 +157,8 @@ public class DirectoryServer extends Server implements Runnable {
 
     public void connect(Socket socket) {
         List<String> content = new ArrayList<>();
-        content.add(this.addressPortList.get(0));
+        content.add(this.addressPortList.get(counter % this.addressPortList.size()));
+        counter ++;
        // System.out.println(this.addressPortList.get(0));
         new SocketUtils(socket,
                 new RequestPackage(2, this.address, this.port, content)).send();
@@ -150,7 +172,7 @@ public class DirectoryServer extends Server implements Runnable {
     }
 
 
-    synchronized public void addNewFile(String fileName, Socket socket){
+    public void addNewFile(String fileName, Socket socket){
         synchronized (this.filesList){
             this.filesList.add(fileName);
         }
@@ -159,14 +181,32 @@ public class DirectoryServer extends Server implements Runnable {
             new SocketUtils(socket,
                     new RequestPackage(3, this.getAddress(), this.getPort(), this.addressPortList)).send();
         }
+        synchronized (this.filesRecorder){
+            Set<String> set = new HashSet<>();
+            set.add(socket.getInetAddress() + ";" + String.valueOf(socket.getPort()));
+            this.filesRecorder.put(fileName, set);
+        }
 
         synchronizeToBackupServer();
+    }
+
+    public void updateFilesRecorder(String fileName, String addressPort){
+        synchronized (this.filesRecorder){
+            this.filesRecorder.get(fileName).add(addressPort);
+        }
     }
 
     public void deleteDeadNodeFromList(String addressPort){
         synchronized (this.addressPortList){
             if (this.addressPortList.contains(addressPort)){
                 addressPortList.remove(addressPort);
+            }
+        }
+        synchronized (this.filesRecorder){
+            for (Map.Entry<String, Set> entry : this.filesRecorder.entrySet()){
+                Set<String> set = entry.getValue();
+                if(set.contains(addressPort))
+                    set.remove(addressPort);
             }
         }
 
@@ -229,14 +269,19 @@ public class DirectoryServer extends Server implements Runnable {
                 } else if (rp.getRequestType() == 2) {
                     connect(socket);
                 } else if (rp.getRequestType() == 3) {
-                    addNewFile(rp.getContent().get(0), socket);
+                    List<String> content = (List<String>) rp.getContent();
+                    addNewFile(content.get(0), socket);
                 }else if (rp.getRequestType() == 4) {
                     getFilesList(socket);
                 }else if (rp.getRequestType() == 5){
-                    synchronizeFromBackupServer(rp.getContent(), socket);
+                    synchronizeFromBackupServer((List<String>) rp.getContent(), socket);
                 }else if (rp.getRequestType() == 6){
-                    deleteDeadNodeFromList(rp.getContent().get(0));
+                    List<String> content = (List<String>) rp.getContent();
+                    deleteDeadNodeFromList(content.get(0));
                     ois.close();
+                }else if (rp.getRequestType() == 7){
+                    String fileName = (String) rp.getContent();
+                    updateFilesRecorder(fileName, rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
                 }
 
             } catch (Exception e) {
