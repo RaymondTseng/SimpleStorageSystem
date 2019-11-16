@@ -59,7 +59,9 @@ public class DirectoryServer extends Server implements Runnable {
         this.backupPort = backupPort;
         this.ifBackup = ifBackup;
 
-        recoveryFromBackupServer();
+
+            this.recoveryFromBackupServer();
+
 
         if (this.addressPortList == null || this.filesList == null){
             this.addressPortList = addressPortList;
