@@ -54,7 +54,16 @@ public class Evaluation {
             clientsList.add(client);
         }
         Thread.sleep(2000);
-//        nodesList.get(2).stop();
+//        mainDS.stop();
+//        Random r = new Random();
+//        int index1 = r.nextInt(5);
+//        int index2 = r.nextInt(5);
+//        while (index2 == index1){
+//            index2 = r.nextInt(5);
+//        }
+//        nodesList.get(index1).stop();
+//        nodesList.get(index2).stop();
+
         ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(20, 100, 1000,
                 TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), Executors.defaultThreadFactory(),
                 new ThreadPoolExecutor.AbortPolicy());
