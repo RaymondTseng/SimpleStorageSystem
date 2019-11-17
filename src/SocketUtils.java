@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
+import jdk.nashorn.internal.ir.debug.ObjectSizeCalculator;
 
 
 public class
@@ -75,9 +76,9 @@ SocketUtils {
     public Object readObjectFromSocket(boolean ifClose){
         try {
             InputStream is = this.socket.getInputStream();
-            this.bytesTransferred += is.available();
             ObjectInputStream ois = new ObjectInputStream(is);
             Object obj = ois.readObject();
+            this.bytesTransferred = (int) ObjectSizeCalculator.getObjectSize(obj);
             if (ifClose)
                 ois.close();
             return obj;
@@ -90,7 +91,6 @@ SocketUtils {
     synchronized public void readFileFromSocket(String filePath){
         try {
             InputStream is = this.socket.getInputStream();
-            this.bytesTransferred += is.available();
             BufferedInputStream bis = new BufferedInputStream(is);
             BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath));
 
@@ -98,6 +98,7 @@ SocketUtils {
             int len = 0;
             while((len = bis.read(buf))!=-1){
                 bos.write(buf, 0, len);
+                this.bytesTransferred += len;
             }
             bos.flush();
             bos.close();

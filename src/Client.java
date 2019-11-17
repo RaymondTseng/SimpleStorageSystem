@@ -76,7 +76,7 @@ public class Client extends Server {
 
         RequestPackage rp = (RequestPackage) socketUtils.readObjectFromSocket(true);
         this.messagesExchanged += 1;
-        this.bytesTransferred += 1;
+        this.bytesTransferred += socketUtils.getBytesTransferred();
         String addressPort = ((List<String>) rp.getContent()).get(0);
         String[] array = addressPort.split(";");
         nodeAddress = array[0];
