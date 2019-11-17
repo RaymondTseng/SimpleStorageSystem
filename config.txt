@@ -1,2 +1,2 @@
-DirectoryServer localhost 8123
-BackupServer localhost 8888
+DirectoryServer localhost 8100
+BackupServer localhost 8101
