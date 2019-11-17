@@ -1,3 +1,5 @@
+import jdk.nashorn.internal.ir.debug.ObjectSizeCalculator;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -236,8 +238,8 @@ public class StorageNode extends Server implements Runnable {
                 InputStream is = this.socket.getInputStream();
                 ois = new ObjectInputStream(is);
                 messagesExchanged += 1;
-                bytesTransferred += is.available();
                 RequestPackage rp = (RequestPackage) ois.readObject();
+                bytesTransferred += ObjectSizeCalculator.getObjectSize(rp);
                 // different types mean different requests
                 if (rp.getRequestType() == 0) {
                     register((List<String>) rp.getContent());

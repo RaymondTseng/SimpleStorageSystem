@@ -1,3 +1,5 @@
+import jdk.nashorn.internal.ir.debug.ObjectSizeCalculator;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -260,8 +262,8 @@ public class DirectoryServer extends Server implements Runnable {
                 InputStream is = this.socket.getInputStream();
                 ois = new ObjectInputStream(is);
                 messagesExchanged += 1;
-                bytesTransferred += is.available();
                 RequestPackage rp = (RequestPackage) ois.readObject();
+                bytesTransferred += ObjectSizeCalculator.getObjectSize(rp);
                 // different types mean different requests
                 if (rp.getRequestType() == 0) {
                     register(rp);

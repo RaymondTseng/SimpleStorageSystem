@@ -54,7 +54,7 @@ public class Evaluation {
             clientsList.add(client);
         }
         Thread.sleep(2000);
-//        mainDS.stop();
+        mainDS.stop();
 //        Random r = new Random();
 //        int index1 = r.nextInt(5);
 //        int index2 = r.nextInt(5);
@@ -84,6 +84,11 @@ public class Evaluation {
                 messagesExchanged += backupDS.getMessagesExchanged();
                 bytesTransferred += mainDS.getBytesTransferred();
                 bytesTransferred += backupDS.getBytesTransferred();
+
+                for (int i = 0; i < nodesList.size(); i++){
+                    messagesExchanged += nodesList.get(i).getMessagesExchanged();
+                    bytesTransferred += nodesList.get(i).getBytesTransferred();
+                }
 
                 for (int i = 0; i < C; i++){
                     messagesExchanged += clientsList.get(i).getMessagesExchanged();
