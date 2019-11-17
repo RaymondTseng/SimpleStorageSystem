@@ -54,7 +54,7 @@ public class Evaluation {
             clientsList.add(client);
         }
         Thread.sleep(2000);
-        mainDS.stop();
+//        mainDS.stop();
 //        Random r = new Random();
 //        int index1 = r.nextInt(5);
 //        int index2 = r.nextInt(5);
