@@ -73,8 +73,10 @@ public class StorageNode extends Server implements Runnable {
     }
 
     public void getFilesList(Socket socket) {
-        new SocketUtils(socket,
-                new RequestPackage(2, this.address, this.port, this.filesList)).send();
+        synchronized (this.filesList) {
+            new SocketUtils(socket,
+                    new RequestPackage(2, this.address, this.port, this.filesList)).send();
+        }
 
     }
 
