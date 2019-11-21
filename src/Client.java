@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+/**
+ * A class for a client
+ */
 public class Client extends Server {
     private String nodeAddress;
     private int nodePort;
@@ -18,6 +21,10 @@ public class Client extends Server {
     private int bytesTransferred = 0;
     private long responseTime = 0;
 
+    /**
+     * main function for manual model
+     * @param args
+     */
     public static void main(String[] args){
         Client client = new Client("localhost", 23333, "localhost", 8123, "localhost", 8888);
         client.connectToSystem();
@@ -68,6 +75,9 @@ public class Client extends Server {
         this.backupPort = backupPort;
     }
 
+    /**
+     * connecting to directory server
+     */
     public void connectToSystem() {
 
         SocketUtils socketUtils = new SocketUtils(dsAddress, dsPort, backupAddress, backupPort,
@@ -84,6 +94,10 @@ public class Client extends Server {
         System.out.println("Connect storage node " + array[0] + ":" + array[1]);
     }
 
+    /**
+     * creating a new file by requesting assigned storage node
+     * @param fileName
+     */
     public void createNewFile(String fileName) {
         List<String> content = new ArrayList<>();
         content.add(fileName);
@@ -104,6 +118,10 @@ public class Client extends Server {
 
     }
 
+    /**
+     * reading a file by fileName
+     * @param fileName
+     */
     public void readFile(String fileName){
         List<String> content = new ArrayList<String>();
         content.add(fileName);
@@ -141,6 +159,9 @@ public class Client extends Server {
 
     }
 
+    /**
+     * getting files list from directory server
+     */
     public void getFilesListFromDirectoryServer() {
         long startTime = System.nanoTime();
         SocketUtils socketUtils = new SocketUtils(this.dsAddress, this.dsPort, backupAddress, backupPort,
@@ -161,6 +182,9 @@ public class Client extends Server {
     }
 
 
+    /**
+     * getting files list from storage node
+     */
     public void getFilesListFromNode() {
         long startTime = System.nanoTime();
         SocketUtils socketUtils = new SocketUtils(this.nodeAddress, this.nodePort,
@@ -189,6 +213,10 @@ public class Client extends Server {
 
     }
 
+    /**
+     * Notifying directory server that the assigned node is died.
+     * Directory server will assign an new storage node to this client
+     */
     public void notifyServerNodeDead(){
         List<String> content = new ArrayList<>();
         content.add(nodeAddress + ";" + String.valueOf(nodePort)); //pass the dead node information to both directory server

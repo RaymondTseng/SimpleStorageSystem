@@ -1,4 +1,4 @@
-import jdk.nashorn.internal.ir.debug.ObjectSizeCalculator;
+
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -10,6 +10,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * A class for storage node
+ */
 public class StorageNode extends Server implements Runnable {
     private List<String> filesList;
     private String dataFolder;
@@ -25,6 +28,11 @@ public class StorageNode extends Server implements Runnable {
     private int messagesExchanged = 0;
     private int bytesTransferred = 0;
 
+    /**
+     * main function for launching a storage node
+     * @param args
+     * @throws IOException
+     */
     public static void main(String[] args) throws IOException{
         if (args.length != 0){
             new StorageNode(args[0], args[1], Integer.parseInt(args[2]), args[3], args[4], Integer.parseInt(args[5]),
@@ -32,7 +40,18 @@ public class StorageNode extends Server implements Runnable {
         }
     }
 
-
+    /**
+     * construct function
+     * @param name
+     * @param address
+     * @param port
+     * @param dataFolder
+     * @param dsAddress
+     * @param dsPort
+     * @param backupAddress
+     * @param backupPort
+     * @throws IOException
+     */
     public StorageNode(String name, String address, int port, String dataFolder, String dsAddress,
                        int dsPort, String backupAddress, int backupPort) throws IOException {
         this.name = name;
@@ -72,6 +91,10 @@ public class StorageNode extends Server implements Runnable {
         }
     }
 
+    /**
+     * return all files list
+     * @param socket
+     */
     public void getFilesList(Socket socket) {
         synchronized (this.filesList) {
             new SocketUtils(socket,
@@ -80,6 +103,10 @@ public class StorageNode extends Server implements Runnable {
 
     }
 
+    /**
+     * Adding a file to directory server as well as sending this file to other storage nodes
+     * @param fileName
+     */
     public void addFileToSystem(String fileName) {
         synchronized (this.filesList){
             filesList.add(fileName);
@@ -105,6 +132,10 @@ public class StorageNode extends Server implements Runnable {
         }
     }
 
+    /**
+     * creating a file with fixed size
+     * @param fileName
+     */
     public void createFile(String fileName) {
         if (filesList.contains(fileName)) {
             System.out.println("File name already exists!");
@@ -128,6 +159,12 @@ public class StorageNode extends Server implements Runnable {
 
     }
 
+    /**
+     * Receive a file from other storage nodes
+     * @param fileName
+     * @param socket
+     * @throws Exception
+     */
     public void receiveFileToLocal(String fileName, Socket socket) throws Exception {
         synchronized (this.filesList){
             if (filesList.contains(fileName)) {
@@ -171,6 +208,11 @@ public class StorageNode extends Server implements Runnable {
 
     }
 
+    /**
+     * Requested by a client that send the file to this client
+     * @param fileName
+     * @param socket
+     */
     public void readFile(String fileName, Socket socket){  //send a certain file to the input address and port
         SocketUtils socketUtils = new SocketUtils(socket, null);
         socketUtils.sendFileBySocket(this.dataFolder + "/" + fileName);
@@ -178,9 +220,12 @@ public class StorageNode extends Server implements Runnable {
 
     }
 
+    /**
+     * Sending all local files to other storage nodes
+     * @param addressPortList
+     */
     public void register(List<String> addressPortList) {
         for (String addressPort : addressPortList) {
-            System.out.println("Ready to send: " + addressPort);
             String[] array = addressPort.split(";");
             String address = array[0];
             int port = Integer.parseInt(array[1]);
@@ -194,6 +239,9 @@ public class StorageNode extends Server implements Runnable {
         }
     }
 
+    /**
+     * Setting current node's directory server
+     */
     private void setDirectoryServer() {
         new SocketUtils(dsAddress, dsPort,
                 new RequestPackage(0, this.address, this.port, this.filesList)).send();
@@ -241,7 +289,7 @@ public class StorageNode extends Server implements Runnable {
                 ois = new ObjectInputStream(is);
                 messagesExchanged += 1;
                 RequestPackage rp = (RequestPackage) ois.readObject();
-                bytesTransferred += ObjectSizeCalculator.getObjectSize(rp);
+                bytesTransferred += is.available();
                 // different types mean different requests
                 if (rp.getRequestType() == 0) {
                     register((List<String>) rp.getContent());

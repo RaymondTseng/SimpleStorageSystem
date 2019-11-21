@@ -1,4 +1,3 @@
-import jdk.nashorn.internal.ir.debug.ObjectSizeCalculator;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,14 +10,21 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * A class for directory server for assigning storage node to clients, returning all files list and registering nodes or clients
+ */
 public class DirectoryServer extends Server implements Runnable {
+
     private String name;
     private List<String> filesList;
     // deal with concurrent new nodes
     private Map<String, Set> filesRecorder;
+    // address and port of each storage nodes
     private List<String> addressPortList;
     private ServerSocket serverSocket;
+    // backup directory server address
     private String backupAddress;
+    // backup directory server port
     private int backupPort;
     private boolean ifBackup;
     private Thread currentThread;
@@ -33,7 +39,11 @@ public class DirectoryServer extends Server implements Runnable {
     // implement polling algorithm
     private int counter = 0;
 
-
+    /**
+     * main function for launching main directory server and backup directory server
+     * @param args
+     * @throws IOException
+     */
     public static void main(String[] args) throws IOException{
         if (args.length != 0){
             List<String[]> networkInformation = Utils.readConfigFile(args[0]);
@@ -52,6 +62,17 @@ public class DirectoryServer extends Server implements Runnable {
 
     }
 
+    /**
+     * construct function for directory server
+     * @param name
+     * @param address
+     * @param port
+     * @param addressPortList
+     * @param backupAddress
+     * @param backupPort
+     * @param ifBackup
+     * @throws IOException
+     */
     public DirectoryServer(String name, String address, int port, List<String> addressPortList, String backupAddress,
                            int backupPort, boolean ifBackup) throws IOException {
         this.name = name;
@@ -81,12 +102,20 @@ public class DirectoryServer extends Server implements Runnable {
         currentThread.start();
     }
 
+    /**
+     * recovery data from backup directory server when re-launch main directory server
+     */
     private void recoveryFromBackupServer(){
         new SocketUtils(this.backupAddress, this.backupPort,
                 new RequestPackage(1, this.address, this.port, null)).send();
     }
 
-
+    /**
+     * This function is designed for backup directory server that main directory server will synchronize
+     * its information with backup directory server
+     * @param content
+     * @param socket
+     */
     synchronized private void synchronizeFromBackupServer(List<String> content, Socket socket){
         this.filesList = content;
         SocketUtils socketUtils = new SocketUtils(socket, null);
@@ -98,6 +127,9 @@ public class DirectoryServer extends Server implements Runnable {
         this.filesRecorder = (Map<String, Set>) rp.getContent();
     }
 
+    /**
+     * This function is designed for main directory server that it can synchronize its information to backup directory server
+     */
     private void synchronizeToBackupServer(){
         SocketUtils socketUtils = null;
 
@@ -107,17 +139,21 @@ public class DirectoryServer extends Server implements Runnable {
             socketUtils.send();
         }
         synchronized(this.addressPortList){
-            socketUtils.setRequestPackage(new RequestPackage<>(5, this.address, this.port, this.addressPortList));
+            socketUtils.setRequestPackage(new RequestPackage<>(15, this.address, this.port, this.addressPortList));
             socketUtils.send();
         }
         synchronized(this.filesRecorder){
-            socketUtils.setRequestPackage(new RequestPackage<>(5, this.address, this.port, this.filesRecorder));
+            socketUtils.setRequestPackage(new RequestPackage<>(15, this.address, this.port, this.filesRecorder));
             socketUtils.send();
         }
 
     }
 
-    synchronized public void register(RequestPackage rp) {
+    /**
+     * Register files from storage node
+     * @param rp
+     */
+    public void register(RequestPackage rp) {
         List<String> filesList = (List<String>) rp.getContent();
         synchronized (this.filesList){
             synchronized (this.filesRecorder){
@@ -133,7 +169,7 @@ public class DirectoryServer extends Server implements Runnable {
             }
         }
 
-
+        // restore address and port of storage node
         this.addressPortList.add(rp.getRequestAddress() + ";" + String.valueOf(rp.getRequestPort()));
 
         if (this.addressPortList.size() > 1){
@@ -141,6 +177,7 @@ public class DirectoryServer extends Server implements Runnable {
                 new SocketUtils(rp.getRequestAddress(), rp.getRequestPort(),
                         new RequestPackage(0, this.address, this.port, this.addressPortList)).send();
             }
+            // request different nodes to send their files to the registered node
             for (Map.Entry<String, Set> entry : this.filesRecorder.entrySet()){
                 String fileName = entry.getKey();
                 String[] array = ((String) entry.getValue().iterator().next()).split(";");
@@ -158,7 +195,10 @@ public class DirectoryServer extends Server implements Runnable {
 
     }
 
-
+    /**
+     * Requested by a client that assigning a storage node to that client
+     * @param socket
+     */
     public void connect(Socket socket) {
         List<String> content = new ArrayList<>();
         content.add(this.addressPortList.get(counter % this.addressPortList.size()));
@@ -168,6 +208,10 @@ public class DirectoryServer extends Server implements Runnable {
                 new RequestPackage(2, this.address, this.port, content)).send();
     }
 
+    /**
+     * Get all files list
+     * @param socket
+     */
     public void getFilesList(Socket socket) {
         synchronized (this.filesList){
             new SocketUtils(socket,
@@ -175,7 +219,11 @@ public class DirectoryServer extends Server implements Runnable {
         }
     }
 
-
+    /**
+     * Add an new file to this system
+     * @param fileName
+     * @param socket
+     */
     public void addNewFile(String fileName, Socket socket){
         synchronized (this.filesList){
             this.filesList.add(fileName);
@@ -194,12 +242,21 @@ public class DirectoryServer extends Server implements Runnable {
         synchronizeToBackupServer();
     }
 
+    /**
+     * Requested by a storage node that notifying directory server it has a file
+     * @param fileName
+     * @param addressPort
+     */
     public void updateFilesRecorder(String fileName, String addressPort){
         synchronized (this.filesRecorder){
             this.filesRecorder.get(fileName).add(addressPort);
         }
     }
 
+    /**
+     * Delete a node from list when the nodes is died.
+     * @param addressPort
+     */
     public void deleteDeadNodeFromList(String addressPort){
         synchronized (this.addressPortList){
             if (this.addressPortList.contains(addressPort)){
@@ -227,6 +284,10 @@ public class DirectoryServer extends Server implements Runnable {
         return bytesTransferred;
     }
 
+    /**
+     * simulate directory server is failed
+     * @throws IOException
+     */
     public void stop() throws IOException {
         this.serverSocket.close();
         this.currentThread.stop();
@@ -263,7 +324,7 @@ public class DirectoryServer extends Server implements Runnable {
                 ois = new ObjectInputStream(is);
                 messagesExchanged += 1;
                 RequestPackage rp = (RequestPackage) ois.readObject();
-                bytesTransferred += ObjectSizeCalculator.getObjectSize(rp);
+                bytesTransferred += is.available();
                 // different types mean different requests
                 if (rp.getRequestType() == 0) {
                     register(rp);

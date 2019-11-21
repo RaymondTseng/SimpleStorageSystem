@@ -11,7 +11,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 
-
+/**
+ * A class for evaluate this system
+ */
 public class Evaluation {
     public static void main(String[] args) throws Exception{
         if (args.length != 0){
@@ -54,6 +56,7 @@ public class Evaluation {
             clientsList.add(client);
         }
         Thread.sleep(2000);
+        // simulate fault tolerance
 //        mainDS.stop();
 //        Random r = new Random();
 //        int index1 = r.nextInt(5);
@@ -107,6 +110,12 @@ public class Evaluation {
 
     }
 
+    /**
+     * initialize all requests randomly
+     * @param N
+     * @param C
+     * @return
+     */
     public static List<List<Integer>> initializeAllRequests(int N, int C){
         // 0 -> get file list from directory server
         // 1 -> get file list from storage node
@@ -130,6 +139,12 @@ public class Evaluation {
 
     }
 
+    /**
+     * initialize all files
+     * @param M
+     * @param folderPath
+     * @param nodesName
+     */
     public static void initializeAllFiles(int M, String folderPath, String[] nodesName){
         int part = M / 5;
         for (int i = 0; i < nodesName.length; i++){
@@ -150,6 +165,11 @@ public class Evaluation {
         }
     }
 
+    /**
+     * delete all files in this path before initialize all files
+     * @param path
+     * @return
+     */
     public static boolean deleteAllFiles(String path){
         boolean flag = false;
         File file = new File(path);
@@ -174,6 +194,9 @@ public class Evaluation {
         return flag;
     }
 
+    /**
+     * A class for evaluating this system
+     */
     static class TestTask implements Runnable{
         private String name;
         private Client client;

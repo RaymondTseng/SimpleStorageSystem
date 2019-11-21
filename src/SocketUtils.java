@@ -1,11 +1,12 @@
 import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
-import jdk.nashorn.internal.ir.debug.ObjectSizeCalculator;
 
 
-public class
-SocketUtils {
+/**
+ * A class for handling socket
+ */
+public class SocketUtils {
     private String address;
     private int port;
 
@@ -18,12 +19,26 @@ SocketUtils {
 
     private int bytesTransferred = 0;
 
+    /**
+     * Sending a request package to address:port
+     * @param address
+     * @param port
+     * @param rp
+     */
     public SocketUtils(String address, int port, RequestPackage rp){
         this.address = address;
         this.port = port;
         this.rp = rp;
     }
 
+    /**
+     * Sending a request package to address:port. If fail, sending this package to backupAddress:backupPort
+     * @param address
+     * @param port
+     * @param backupAddress
+     * @param backupPort
+     * @param rp
+     */
     public SocketUtils(String address, int port, String backupAddress, int backupPort, RequestPackage rp){
         this.address = address;
         this.port = port;
@@ -32,24 +47,32 @@ SocketUtils {
         this.rp = rp;
     }
 
+    /**
+     * handling existed socket
+     * @param socket
+     * @param rp
+     */
     public SocketUtils(Socket socket, RequestPackage rp){
         this.socket = socket;
         this.rp = rp;
     }
 
-
+    /**
+     * sending request package
+     * @return
+     */
     public boolean send(){
         boolean flag = false;
         try{
             if (this.socket == null) {
                 this.socket = new Socket(this.address, this.port);
+                this.socket.setSoTimeout(2000);
             }
             ObjectOutputStream oos = new ObjectOutputStream(this.socket.getOutputStream());
             oos.writeObject(this.rp);
             oos.flush();
             flag = true;
         }catch (ConnectException e){
-            System.out.println("use backup");
             flag = sendBackup();
         } catch (IOException e) {
             e.printStackTrace();
@@ -57,6 +80,10 @@ SocketUtils {
         return flag;
     }
 
+    /**
+     * sending request package to backup directory server
+     * @return
+     */
     public boolean sendBackup(){
         boolean flag = false;
         if (this.backupAddress == null)
@@ -73,12 +100,17 @@ SocketUtils {
         return flag;
     }
 
+    /**
+     * reading an object from an existed package
+     * @param ifClose
+     * @return
+     */
     public Object readObjectFromSocket(boolean ifClose){
         try {
             InputStream is = this.socket.getInputStream();
             ObjectInputStream ois = new ObjectInputStream(is);
             Object obj = ois.readObject();
-            this.bytesTransferred = (int) ObjectSizeCalculator.getObjectSize(obj);
+            this.bytesTransferred += is.available();
             if (ifClose)
                 ois.close();
             return obj;
@@ -88,6 +120,10 @@ SocketUtils {
         return null;
     }
 
+    /**
+     * Reading a file from an existed socket
+     * @param filePath
+     */
     synchronized public void readFileFromSocket(String filePath){
         try {
             InputStream is = this.socket.getInputStream();
@@ -108,7 +144,10 @@ SocketUtils {
         }
     }
 
-
+    /**
+     * sending a file by using an existed socket
+     * @param filePath
+     */
     synchronized public void sendFileBySocket(String filePath){
         try {
             BufferedInputStream bis = new BufferedInputStream(new FileInputStream(filePath));
